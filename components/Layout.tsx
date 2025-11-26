@@ -35,10 +35,10 @@ export const Layout: React.FC<LayoutProps> = ({
       {/* Sidebar */}
       <aside className="bg-white dark:bg-gray-800 w-full md:w-64 border-r border-gray-200 dark:border-gray-700 flex flex-col shadow-sm fixed md:relative z-20 h-16 md:h-auto bottom-0 md:bottom-auto transition-colors duration-300">
         <div className="p-6 hidden md:flex items-center gap-2 border-b border-gray-100 dark:border-gray-700">
-          <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold">
-            TF
+          <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold shadow-md shadow-indigo-200 dark:shadow-none">
+            wT
           </div>
-          <span className="text-xl font-bold text-gray-800 dark:text-white tracking-tight">TicketFlow</span>
+          <span className="text-xl font-bold text-gray-800 dark:text-white tracking-tight">wTicketFlow</span>
         </div>
 
         <nav className="flex-1 p-2 md:p-4 flex md:flex-col justify-between md:justify-start gap-1 overflow-x-auto md:overflow-visible">
@@ -96,7 +96,10 @@ export const Layout: React.FC<LayoutProps> = ({
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
         {/* Mobile Header */}
         <header className="bg-white dark:bg-gray-800 h-16 border-b border-gray-200 dark:border-gray-700 flex md:hidden items-center justify-between px-4 sticky top-0 z-10 transition-colors duration-300">
-           <div className="font-bold text-gray-800 dark:text-white">TicketFlow</div>
+           <div className="font-bold text-gray-800 dark:text-white flex items-center gap-2">
+             <div className="w-6 h-6 bg-indigo-600 rounded text-white flex items-center justify-center text-xs">wT</div>
+             wTicketFlow
+           </div>
            <div className="flex items-center gap-2">
              <button 
                onClick={onToggleTheme} 

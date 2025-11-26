@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { TicketTopic, User, Subject } from '../types';
+import { TicketTopic, TicketPriority, User, Subject } from '../types';
 import { categorizeTicket } from '../services/geminiService';
-import { Send, Sparkles, Loader2, UserPlus, Tag } from 'lucide-react';
+import { Send, Sparkles, Loader2, UserPlus, Tag, AlertTriangle } from 'lucide-react';
 
 interface TicketFormProps {
   users: User[];
   subjects: Subject[];
-  onSubmit: (data: { title: string; description: string; creatorName: string; creatorId: string; topic: TicketTopic }) => void;
+  onSubmit: (data: { title: string; description: string; creatorName: string; creatorId: string; topic: TicketTopic; priority: TicketPriority }) => void;
   onCancel: () => void;
   onNavigateToUsers: () => void;
   onNavigateToSubjects: () => void;
@@ -24,6 +24,7 @@ export const TicketForm: React.FC<TicketFormProps> = ({
   const [description, setDescription] = useState('');
   const [selectedUserId, setSelectedUserId] = useState('');
   const [topic, setTopic] = useState<TicketTopic>(TicketTopic.OTRO);
+  const [priority, setPriority] = useState<TicketPriority>(TicketPriority.NORMAL);
   const [isAutoCategorizing, setIsAutoCategorizing] = useState(false);
 
   // Debounce logic to auto-categorize when description changes
@@ -54,7 +55,8 @@ export const TicketForm: React.FC<TicketFormProps> = ({
       description, 
       creatorName: user.name, 
       creatorId: user.id, 
-      topic 
+      topic,
+      priority
     });
   };
 
@@ -102,19 +104,37 @@ export const TicketForm: React.FC<TicketFormProps> = ({
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Usuario Solicitante</label>
-          <select
-            required
-            className="w-full px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:bg-white dark:focus:bg-gray-600 focus:border-indigo-500 outline-none transition-all cursor-pointer"
-            value={selectedUserId}
-            onChange={(e) => setSelectedUserId(e.target.value)}
-          >
-            <option value="" disabled>Seleccionar un usuario...</option>
-            {users.map((user) => (
-              <option key={user.id} value={user.id}>{user.name}</option>
-            ))}
-          </select>
+        {/* Row 1: User & Priority */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Usuario Solicitante</label>
+            <select
+              required
+              className="w-full px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:bg-white dark:focus:bg-gray-600 focus:border-indigo-500 outline-none transition-all cursor-pointer"
+              value={selectedUserId}
+              onChange={(e) => setSelectedUserId(e.target.value)}
+            >
+              <option value="" disabled>Seleccionar un usuario...</option>
+              {users.map((user) => (
+                <option key={user.id} value={user.id}>{user.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Prioridad</label>
+            <select
+              required
+              className="w-full px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:bg-white dark:focus:bg-gray-600 focus:border-indigo-500 outline-none transition-all cursor-pointer"
+              value={priority}
+              onChange={(e) => setPriority(e.target.value as TicketPriority)}
+            >
+              <option value={TicketPriority.LOW}>Baja (Informativo)</option>
+              <option value={TicketPriority.NORMAL}>Normal</option>
+              <option value={TicketPriority.HIGH}>Alta (Impide trabajar)</option>
+              <option value={TicketPriority.URGENT}>URGENTE (Crítico)</option>
+            </select>
+          </div>
         </div>
 
         <div className="space-y-2">

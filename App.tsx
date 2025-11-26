@@ -7,8 +7,8 @@ import { UserManagement } from './components/UserManagement';
 import { SubjectManagement } from './components/SubjectManagement';
 import { DataManagement } from './components/DataManagement';
 import { MyTickets } from './components/MyTickets';
-import { Ticket, TicketStatus, TicketTopic, FilterState, User, Subject, AppData } from './types';
-import { Filter, Search, Inbox, CheckCircle2, Clock, CalendarDays, Flame, Archive, RotateCcw, X, User as UserIcon } from 'lucide-react';
+import { Ticket, TicketStatus, TicketTopic, TicketPriority, FilterState, User, Subject, AppData } from './types';
+import { Filter, Search, Inbox, CheckCircle2, Clock, CalendarDays, Flame, Archive, RotateCcw, X, User as UserIcon, Download } from 'lucide-react';
 
 const App: React.FC = () => {
   const [tickets, setTickets] = useState<Ticket[]>([]);
@@ -31,6 +31,7 @@ const App: React.FC = () => {
   const [filters, setFilters] = useState<FilterState>({
     status: 'ALL',
     topic: 'ALL',
+    priority: 'ALL',
     search: '',
     dateStart: '',
     dateEnd: ''
@@ -38,38 +39,49 @@ const App: React.FC = () => {
 
   // Load from LocalStorage on mount
   useEffect(() => {
-    const savedTickets = localStorage.getItem('ticketflow_tickets');
-    const savedUsers = localStorage.getItem('ticketflow_users');
-    const savedSubjects = localStorage.getItem('ticketflow_subjects');
-    const savedTheme = localStorage.getItem('ticketflow_theme');
+    // Migration Logic: Check if old 'ticketflow_' keys exist, if so, migrate to 'wticketflow_'
+    if (localStorage.getItem('ticketflow_tickets') && !localStorage.getItem('wticketflow_tickets')) {
+        localStorage.setItem('wticketflow_tickets', localStorage.getItem('ticketflow_tickets') || '[]');
+        localStorage.setItem('wticketflow_users', localStorage.getItem('ticketflow_users') || '[]');
+        localStorage.setItem('wticketflow_subjects', localStorage.getItem('ticketflow_subjects') || '[]');
+        localStorage.setItem('wticketflow_theme', localStorage.getItem('ticketflow_theme') || 'light');
+        // Optional: Clean up old keys? No, better keep them as backup.
+    }
+
+    const savedTickets = localStorage.getItem('wticketflow_tickets');
+    const savedUsers = localStorage.getItem('wticketflow_users');
+    const savedSubjects = localStorage.getItem('wticketflow_subjects');
+    const savedTheme = localStorage.getItem('wticketflow_theme');
     
     if (savedTickets) {
       try { 
         const parsedTickets = JSON.parse(savedTickets);
-        // Migration: ensure all tickets have a number.
-        // Assuming tickets are saved in order [newest, ..., oldest] or similar.
-        // We will assign numbers based on creation time if missing, or just index logic.
-        // Best approach: Sort by createdAt ASC, assign 1..N, then restore order.
+        // Migration & Validation
         let needsUpdate = false;
         
-        // Check if any ticket is missing a number
+        // 1. Assign sequential numbers if missing
         const missingNumbers = parsedTickets.some((t: any) => t.number === undefined);
         
+        // 2. Assign default priority if missing
+        const missingPriority = parsedTickets.some((t: any) => t.priority === undefined);
+
         let processedTickets = parsedTickets;
-        if (missingNumbers) {
-            const sorted = [...parsedTickets].sort((a, b) => a.createdAt - b.createdAt);
+
+        if (missingNumbers || missingPriority) {
+            const sorted = [...parsedTickets].sort((a: any, b: any) => a.createdAt - b.createdAt);
             processedTickets = sorted.map((t, index) => ({
                 ...t,
-                number: t.number !== undefined ? t.number : index + 1
+                number: t.number !== undefined ? t.number : index + 1,
+                priority: t.priority || TicketPriority.NORMAL
             }));
-            // Sort back to match original display preference (usually Newest first)
+            // Sort back to match original display preference (Newest first)
             processedTickets.sort((a: Ticket, b: Ticket) => b.createdAt - a.createdAt);
             needsUpdate = true;
         }
 
         setTickets(processedTickets);
         if (needsUpdate) {
-            localStorage.setItem('ticketflow_tickets', JSON.stringify(processedTickets));
+            localStorage.setItem('wticketflow_tickets', JSON.stringify(processedTickets));
         }
       } catch (e) { console.error(e); }
     }
@@ -86,10 +98,10 @@ const App: React.FC = () => {
 
   // Save to LocalStorage on change
   useEffect(() => {
-    localStorage.setItem('ticketflow_tickets', JSON.stringify(tickets));
-    localStorage.setItem('ticketflow_users', JSON.stringify(users));
-    localStorage.setItem('ticketflow_subjects', JSON.stringify(subjects));
-    localStorage.setItem('ticketflow_theme', isDarkMode ? 'dark' : 'light');
+    localStorage.setItem('wticketflow_tickets', JSON.stringify(tickets));
+    localStorage.setItem('wticketflow_users', JSON.stringify(users));
+    localStorage.setItem('wticketflow_subjects', JSON.stringify(subjects));
+    localStorage.setItem('wticketflow_theme', isDarkMode ? 'dark' : 'light');
     
     // Apply theme class
     if (isDarkMode) {
@@ -117,7 +129,7 @@ const App: React.FC = () => {
 
   // --- Actions ---
 
-  const handleCreateTicket = (data: { title: string; description: string; creatorName: string; creatorId: string; topic: TicketTopic }) => {
+  const handleCreateTicket = (data: { title: string; description: string; creatorName: string; creatorId: string; topic: TicketTopic; priority: TicketPriority }) => {
     // Calculate next ticket number
     const maxNumber = tickets.length > 0 
         ? Math.max(...tickets.map(t => t.number || 0)) 
@@ -141,10 +153,10 @@ const App: React.FC = () => {
     setNotification(`Ticket #${nextNumber} creado exitosamente`);
   };
 
-  const handleResolveTicket = (id: string) => {
+  const handleResolveTicket = (id: string, note?: string) => {
     if (!isAdmin) return;
     setTickets(tickets.map(t => 
-      t.id === id ? { ...t, status: TicketStatus.RESOLVED, resolvedAt: Date.now() } : t
+      t.id === id ? { ...t, status: TicketStatus.RESOLVED, resolvedAt: Date.now(), resolutionNote: note } : t
     ));
     setNotification("Ticket marcado como resuelto");
     // If resolved from modal, close modal
@@ -154,7 +166,7 @@ const App: React.FC = () => {
   const handleReopenTicket = (id: string) => {
     if (!isAdmin) return;
     setTickets(tickets.map(t =>
-      t.id === id ? { ...t, status: TicketStatus.OPEN, resolvedAt: undefined } : t
+      t.id === id ? { ...t, status: TicketStatus.OPEN, resolvedAt: undefined, resolutionNote: undefined } : t
     ));
     setNotification("Ticket reabierto");
     if (selectedTicket?.id === id) setSelectedTicket(null);
@@ -183,15 +195,16 @@ const App: React.FC = () => {
   };
 
   const handleImportData = (data: AppData) => {
-    // Ensure imported tickets have numbers
+    // Ensure imported tickets have numbers & priority
     let processedTickets = data.tickets;
-    const missingNumbers = processedTickets.some(t => t.number === undefined);
+    const needsFix = processedTickets.some(t => t.number === undefined || t.priority === undefined);
     
-    if (missingNumbers) {
+    if (needsFix) {
        const sorted = [...processedTickets].sort((a, b) => a.createdAt - b.createdAt);
        processedTickets = sorted.map((t, index) => ({
            ...t,
-           number: t.number !== undefined ? t.number : index + 1
+           number: t.number !== undefined ? t.number : index + 1,
+           priority: t.priority || TicketPriority.NORMAL
        }));
        processedTickets.sort((a, b) => b.createdAt - a.createdAt);
     }
@@ -203,20 +216,51 @@ const App: React.FC = () => {
     setActiveTab('dashboard');
   };
 
+  const handleExportCSV = () => {
+    if (tickets.length === 0) {
+        setNotification("No hay datos para exportar");
+        return;
+    }
+
+    const headers = ["ID", "Numero", "Titulo", "Prioridad", "Estado", "Creador", "Tema", "Fecha Creacion", "Fecha Resolucion", "Nota Resolucion", "Descripcion"];
+    const rows = tickets.map(t => [
+        t.id,
+        t.number,
+        `"${t.title.replace(/"/g, '""')}"`, // Escape quotes
+        t.priority,
+        t.status,
+        t.creatorName,
+        t.topic,
+        new Date(t.createdAt).toLocaleString(),
+        t.resolvedAt ? new Date(t.resolvedAt).toLocaleString() : "",
+        t.resolutionNote ? `"${t.resolutionNote.replace(/"/g, '""')}"` : "",
+        `"${t.description.replace(/"/g, '""')}"`
+    ]);
+
+    const csvContent = "data:text/csv;charset=utf-8," 
+        + headers.join(",") + "\n" 
+        + rows.map(e => e.join(",")).join("\n");
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `wTicketFlow_Report_${new Date().toISOString().slice(0,10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   // --- Filter Logic ---
 
   const filteredTickets = useMemo(() => {
     return tickets.filter(t => {
-      // For Dashboard, we ignore status filter here because we split them manually, 
-      // UNLESS the user explicitly selected one status in the filter dropdown.
-      // For History, we respect the filter fully.
-      
       let matchStatus = true;
       if (activeTab === 'history' || filters.status !== 'ALL') {
          matchStatus = filters.status === 'ALL' || t.status === filters.status;
       }
 
       const matchTopic = filters.topic === 'ALL' || t.topic === filters.topic;
+      const matchPriority = filters.priority === 'ALL' || t.priority === filters.priority;
       const matchSearch = t.title.toLowerCase().includes(filters.search.toLowerCase()) || 
                           t.description.toLowerCase().includes(filters.search.toLowerCase()) ||
                           t.creatorName.toLowerCase().includes(filters.search.toLowerCase());
@@ -231,7 +275,7 @@ const App: React.FC = () => {
         matchDate = matchDate && t.createdAt <= endDate.getTime();
       }
 
-      return matchStatus && matchTopic && matchSearch && matchDate;
+      return matchStatus && matchTopic && matchPriority && matchSearch && matchDate;
     });
   }, [tickets, filters, activeTab]);
 
@@ -245,7 +289,7 @@ const App: React.FC = () => {
     return {
       open: tickets.filter(t => t.status === TicketStatus.OPEN).length,
       resolved: tickets.filter(t => t.status === TicketStatus.RESOLVED).length,
-      today: tickets.filter(t => new Date(t.createdAt).toDateString() === new Date().toDateString()).length
+      urgent: tickets.filter(t => t.priority === TicketPriority.URGENT && t.status === TicketStatus.OPEN).length
     };
   }, [tickets]);
 
@@ -360,11 +404,11 @@ const App: React.FC = () => {
               </div>
               <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm flex items-center justify-between transition-all duration-300 hover:shadow-lg hover:scale-[1.02] cursor-default group">
                 <div>
-                  <p className="text-gray-500 dark:text-gray-400 text-sm font-medium group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">Nuevos Hoy</p>
-                  <p className="text-3xl font-bold text-gray-800 dark:text-white mt-1">{stats.today}</p>
+                  <p className="text-gray-500 dark:text-gray-400 text-sm font-medium group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors">Urgentes</p>
+                  <p className="text-3xl font-bold text-gray-800 dark:text-white mt-1">{stats.urgent}</p>
                 </div>
-                <div className="bg-indigo-100 dark:bg-indigo-900/30 p-3 rounded-xl text-indigo-600 dark:text-indigo-400 group-hover:bg-indigo-200 dark:group-hover:bg-indigo-900/50 transition-colors">
-                  <Clock size={24} />
+                <div className="bg-red-100 dark:bg-red-900/30 p-3 rounded-xl text-red-600 dark:text-red-400 group-hover:bg-red-200 dark:group-hover:bg-red-900/50 transition-colors">
+                  <Flame size={24} />
                 </div>
               </div>
             </div>
@@ -408,6 +452,17 @@ const App: React.FC = () => {
                   ))}
                 </select>
 
+                <select 
+                  className="px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-600 dark:text-gray-300 focus:outline-none focus:border-indigo-400 cursor-pointer"
+                  value={filters.priority}
+                  onChange={(e) => setFilters({...filters, priority: e.target.value as any})}
+                >
+                  <option value="ALL">Todas las Prioridades</option>
+                  {Object.values(TicketPriority).map(p => (
+                    <option key={p} value={p}>{p}</option>
+                  ))}
+                </select>
+
                 <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-2">
                   <CalendarDays size={16} className="text-gray-400" />
                   <input 
@@ -446,7 +501,13 @@ const App: React.FC = () => {
 
                   {openTickets.length > 0 ? (
                     <div className="grid grid-cols-1 gap-4">
-                      {openTickets.map(ticket => (
+                      {openTickets
+                        // Sort by Priority (Urgent first) then Date
+                        .sort((a, b) => {
+                             const priorityOrder = { [TicketPriority.URGENT]: 3, [TicketPriority.HIGH]: 2, [TicketPriority.NORMAL]: 1, [TicketPriority.LOW]: 0 };
+                             return priorityOrder[b.priority] - priorityOrder[a.priority] || b.createdAt - a.createdAt;
+                        })
+                        .map(ticket => (
                         <TicketCard 
                           key={ticket.id} 
                           ticket={ticket} 
@@ -527,9 +588,20 @@ const App: React.FC = () => {
                 <h3 className="text-xl font-bold text-gray-800 dark:text-white">
                   {activeTab === 'history' ? 'Historial Completo' : 'Resultados de Búsqueda'}
                 </h3>
-                <span className="text-sm text-gray-500 dark:text-gray-400">
-                  {filteredTickets.length} resultados
-                </span>
+                <div className="flex gap-4 items-center">
+                    {activeTab === 'history' && (
+                        <button 
+                            onClick={handleExportCSV}
+                            className="text-sm flex items-center gap-1 text-green-600 dark:text-green-400 hover:underline font-medium"
+                            title="Exportar listado actual a Excel/CSV"
+                        >
+                            <Download size={14} /> Exportar CSV
+                        </button>
+                    )}
+                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                    {filteredTickets.length} resultados
+                    </span>
+                </div>
               </div>
 
               {filteredTickets.length > 0 ? (
@@ -555,6 +627,7 @@ const App: React.FC = () => {
                     onClick={() => setFilters({
                       status: 'ALL',
                       topic: 'ALL',
+                      priority: 'ALL',
                       search: '',
                       dateStart: '',
                       dateEnd: ''

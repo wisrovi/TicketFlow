@@ -1,7 +1,6 @@
-
 import React, { useState } from 'react';
-import { Ticket, TicketStatus, TicketTopic } from '../types';
-import { CheckCircle2, Clock, User, Sparkles, ChevronDown, ChevronUp, ExternalLink, RotateCcw, X, Check, Hash } from 'lucide-react';
+import { Ticket, TicketStatus, TicketTopic, TicketPriority } from '../types';
+import { CheckCircle2, Clock, User, Sparkles, ChevronDown, ChevronUp, ExternalLink, RotateCcw, X, Check, Hash, AlertCircle, FileText } from 'lucide-react';
 import { getSolutionInsight } from '../services/geminiService';
 
 interface TicketCardProps {
@@ -9,7 +8,7 @@ interface TicketCardProps {
   isAdmin: boolean;
   isHighlighted?: boolean;
   defaultExpanded?: boolean;
-  onResolve: (id: string) => void;
+  onResolve: (id: string, note?: string) => void;
   onReopen: (id: string) => void;
 }
 
@@ -18,6 +17,7 @@ export const TicketCard: React.FC<TicketCardProps> = ({ ticket, isAdmin, isHighl
   const [aiInsight, setAiInsight] = useState<string | null>(ticket.aiSolution || null);
   const [loadingAi, setLoadingAi] = useState(false);
   const [showResolveConfirm, setShowResolveConfirm] = useState(false);
+  const [resolutionNote, setResolutionNote] = useState('');
 
   const handleGetInsight = async () => {
     if (aiInsight) return;
@@ -36,6 +36,15 @@ export const TicketCard: React.FC<TicketCardProps> = ({ ticket, isAdmin, isHighl
     [TicketTopic.ACCESO]: 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300',
     [TicketTopic.OTRO]: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400',
   };
+
+  const priorityConfig = {
+    [TicketPriority.LOW]: { color: 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20', icon: CheckCircle2 },
+    [TicketPriority.NORMAL]: { color: 'text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700', icon: CheckCircle2 },
+    [TicketPriority.HIGH]: { color: 'text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20', icon: AlertCircle },
+    [TicketPriority.URGENT]: { color: 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900', icon: AlertCircle },
+  };
+
+  const pConfig = priorityConfig[ticket.priority] || priorityConfig[TicketPriority.NORMAL];
 
   // Helper function to detect URLs and convert them to links
   const renderDescriptionWithLinks = (text: string) => {
@@ -82,8 +91,8 @@ export const TicketCard: React.FC<TicketCardProps> = ({ ticket, isAdmin, isHighl
                  <CheckCircle2 size={12} /> RESUELTO
                </span>
             ) : (
-               <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold border bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-900">
-                 PENDIENTE
+               <span className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${pConfig.color}`}>
+                 {ticket.priority.toUpperCase()}
                </span>
             )}
 
@@ -115,28 +124,39 @@ export const TicketCard: React.FC<TicketCardProps> = ({ ticket, isAdmin, isHighl
         <div className="flex flex-col gap-2 items-end">
           {isAdmin && !isResolved && (
             showResolveConfirm ? (
-              <div className="flex items-center gap-1 animate-in fade-in slide-in-from-right-2 duration-200 bg-gray-100 dark:bg-gray-700 p-1 rounded-lg">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onResolve(ticket.id);
-                    setShowResolveConfirm(false);
-                  }}
-                  className="bg-green-600 hover:bg-green-700 text-white p-1.5 rounded-md transition-colors"
-                  title="Confirmar: Marcar ticket como resuelto"
-                >
-                  <Check size={16} />
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowResolveConfirm(false);
-                  }}
-                  className="bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-200 p-1.5 rounded-md transition-colors"
-                  title="Cancelar operación"
-                >
-                  <X size={16} />
-                </button>
+              <div className="absolute right-4 top-4 z-20 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-4 rounded-xl shadow-xl w-72 animate-in fade-in slide-in-from-right-2 duration-200">
+                <h4 className="text-sm font-bold text-gray-800 dark:text-white mb-2">Finalizar Ticket</h4>
+                <textarea
+                    className="w-full text-sm p-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg mb-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-800 dark:text-white"
+                    placeholder="Bitácora: ¿Qué solución se aplicó?"
+                    rows={3}
+                    value={resolutionNote}
+                    onChange={(e) => setResolutionNote(e.target.value)}
+                    autoFocus
+                />
+                <div className="flex gap-2 justify-end">
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setShowResolveConfirm(false);
+                            setResolutionNote('');
+                        }}
+                        className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 px-3 py-1.5"
+                    >
+                        Cancelar
+                    </button>
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onResolve(ticket.id, resolutionNote);
+                            setShowResolveConfirm(false);
+                            setResolutionNote('');
+                        }}
+                        className="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg font-medium flex items-center gap-1"
+                    >
+                        <Check size={14} /> Confirmar
+                    </button>
+                </div>
               </div>
             ) : (
               <button
@@ -145,7 +165,7 @@ export const TicketCard: React.FC<TicketCardProps> = ({ ticket, isAdmin, isHighl
                   setShowResolveConfirm(true);
                 }}
                 className="shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white p-2 rounded-xl transition-all shadow-sm group flex items-center gap-2 hover:shadow-md"
-                title="Marcar ticket como resuelto"
+                title="Marcar ticket como resuelto y añadir nota"
               >
                 <CheckCircle2 size={20} className="group-hover:scale-110 transition-transform" />
                 <span className="text-xs font-medium hidden sm:inline">Resolver</span>
@@ -202,16 +222,28 @@ export const TicketCard: React.FC<TicketCardProps> = ({ ticket, isAdmin, isHighl
               )}
             </div>
             
-            {/* Resolution Timestamp */}
+            {/* Resolution Section with Note */}
             {isResolved && ticket.resolvedAt && (
-               <div className="mb-4 flex items-center gap-2 text-green-700 dark:text-green-400 text-xs font-medium bg-green-50 dark:bg-green-900/20 p-3 rounded-lg border border-green-100 dark:border-green-900/30 animate-in fade-in slide-in-from-left-2 duration-500">
-                 <div className="p-1 bg-green-200 dark:bg-green-800 rounded-full">
-                    <CheckCircle2 size={14} />
+               <div className="mb-4 text-green-700 dark:text-green-400 text-xs font-medium bg-green-50 dark:bg-green-900/20 p-3 rounded-lg border border-green-100 dark:border-green-900/30 animate-in fade-in slide-in-from-left-2 duration-500">
+                 <div className="flex items-center gap-2 mb-2">
+                    <div className="p-1 bg-green-200 dark:bg-green-800 rounded-full">
+                        <CheckCircle2 size={14} />
+                    </div>
+                    <div>
+                        <span className="font-bold">Ticket Resuelto</span>
+                        <span className="opacity-90 ml-2">{new Date(ticket.resolvedAt).toLocaleString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
                  </div>
-                 <div className="flex flex-col">
-                    <span className="font-bold">Ticket Resuelto</span>
-                    <span className="opacity-90">{new Date(ticket.resolvedAt).toLocaleString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
-                 </div>
+                 {ticket.resolutionNote && (
+                    <div className="mt-2 pl-8 border-l-2 border-green-200 dark:border-green-800">
+                        <p className="font-semibold text-green-800 dark:text-green-300 flex items-center gap-1 mb-1">
+                            <FileText size={12} /> Nota de Resolución:
+                        </p>
+                        <p className="text-green-700 dark:text-green-400 italic">
+                            "{ticket.resolutionNote}"
+                        </p>
+                    </div>
+                 )}
                </div>
             )}
 
