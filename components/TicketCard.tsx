@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Ticket, TicketStatus, TicketTopic, TicketPriority } from '../types';
-import { CheckCircle2, Clock, User, Sparkles, ChevronDown, ChevronUp, ExternalLink, RotateCcw, X, Check, Hash, AlertCircle, FileText, MessageSquare, Send } from 'lucide-react';
+import { CheckCircle2, Clock, User, Sparkles, ChevronDown, ChevronUp, ExternalLink, RotateCcw, X, Check, Hash, AlertCircle, FileText, MessageSquare, Send, ShieldCheck } from 'lucide-react';
 import { getSolutionInsight } from '../services/geminiService';
 
 interface TicketCardProps {
@@ -140,12 +140,6 @@ export const TicketCard: React.FC<TicketCardProps> = ({
                 : new Date(ticket.createdAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
               }
             </span>
-
-            {isHighlighted && (
-              <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 animate-pulse bg-indigo-50 dark:bg-indigo-900/30 px-2 py-0.5 rounded-full">
-                ¡Nuevo!
-              </span>
-            )}
           </div>
 
           <h3 className={`text-lg font-bold transition-colors ${isResolved ? 'text-gray-600 dark:text-gray-400 decoration-gray-400' : 'text-gray-800 dark:text-white'}`}>
@@ -222,18 +216,19 @@ export const TicketCard: React.FC<TicketCardProps> = ({
         </div>
       </div>
 
+      {/* Footer info & Expand button */}
       <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between">
         <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
           <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-gray-50 dark:bg-gray-700/50">
             <User size={14} />
             <span className="font-medium text-xs">{ticket.creatorName}</span>
           </div>
-          {commentCount > 0 && (
-             <div className="flex items-center gap-1 text-gray-400 dark:text-gray-500">
-               <MessageSquare size={14} />
-               <span className="text-xs">{commentCount}</span>
-             </div>
-          )}
+          
+          {/* VISUAL INDICATOR: Message Count */}
+          <div className={`flex items-center gap-1.5 px-2 py-1 rounded-md transition-all ${commentCount > 0 ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 font-semibold' : 'text-gray-400 dark:text-gray-500'}`} title={`${commentCount} comentarios`}>
+             <MessageSquare size={14} className={commentCount > 0 ? "fill-current" : ""} />
+             <span className="text-xs">{commentCount > 0 ? `${commentCount} msgs` : '0'}</span>
+          </div>
         </div>
 
         <button 
@@ -286,68 +281,9 @@ export const TicketCard: React.FC<TicketCardProps> = ({
                </div>
             )}
 
-            {/* Comments Section */}
-            <div className="border-t border-gray-200 dark:border-gray-600 pt-4 mt-2">
-              <h4 className="font-bold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-2">
-                <MessageSquare size={16} /> Comentarios / Hilo
-              </h4>
-              
-              <div className="space-y-3 mb-4 max-h-60 overflow-y-auto custom-scrollbar pr-2">
-                {(!ticket.comments || ticket.comments.length === 0) && (
-                   <p className="text-gray-400 dark:text-gray-500 italic text-xs text-center py-2">No hay comentarios aún. Inicia la conversación.</p>
-                )}
-                {ticket.comments?.map((comment) => (
-                  <div key={comment.id} className={`flex flex-col ${comment.isAdmin ? 'items-end' : 'items-start'}`}>
-                     <div className={`max-w-[85%] rounded-2xl px-3 py-2 text-xs shadow-sm ${
-                       comment.isAdmin 
-                         ? 'bg-indigo-100 text-indigo-900 dark:bg-indigo-900/40 dark:text-indigo-200 rounded-br-none' 
-                         : 'bg-white text-gray-700 dark:bg-gray-600 dark:text-gray-100 rounded-bl-none border border-gray-100 dark:border-gray-500'
-                     }`}>
-                       <div className="font-bold mb-0.5 text-[10px] opacity-75">
-                         {comment.authorName} {comment.isAdmin && '(Admin)'}
-                       </div>
-                       <p className="whitespace-pre-wrap leading-relaxed">{comment.text}</p>
-                     </div>
-                     <span className="text-[9px] text-gray-400 mt-0.5 px-1">
-                       {new Date(comment.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                     </span>
-                  </div>
-                ))}
-                <div ref={commentsEndRef} />
-              </div>
-
-              {/* Add Comment Input */}
-              {!isResolved && (
-                <form onSubmit={handleSendComment} className="flex gap-2 items-end">
-                    <textarea 
-                      value={newComment}
-                      onChange={(e) => setNewComment(e.target.value)}
-                      placeholder="Escribe un comentario o actualización..."
-                      className="flex-1 text-sm p-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-900 focus:border-indigo-400 outline-none resize-none"
-                      rows={1}
-                      style={{ minHeight: '40px' }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault();
-                          handleSendComment(e);
-                        }
-                      }}
-                    />
-                    <button 
-                      type="submit"
-                      disabled={!newComment.trim()}
-                      className="p-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
-                      title="Enviar comentario"
-                    >
-                      <Send size={16} />
-                    </button>
-                </form>
-              )}
-            </div>
-
             {/* AI Insights (Admin Only) */}
             {isAdmin && !isResolved && (
-              <div className="mt-6 border-t border-gray-200 dark:border-gray-600 pt-4">
+              <div className="mb-6 border-b border-gray-200 dark:border-gray-600 pb-4">
                 <div className="bg-white dark:bg-gray-800 border border-indigo-100 dark:border-indigo-900/30 rounded-lg p-3 shadow-sm">
                   <div className="flex items-center justify-between mb-2">
                     <span className="flex items-center gap-2 text-indigo-700 dark:text-indigo-400 font-semibold text-xs uppercase tracking-wide">
@@ -381,6 +317,77 @@ export const TicketCard: React.FC<TicketCardProps> = ({
                 </div>
               </div>
             )}
+
+            {/* CHAT / COMMENTS SECTION */}
+            <div className="pt-2">
+              <h4 className="font-bold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-2">
+                <MessageSquare size={16} /> Chat del Ticket
+              </h4>
+              
+              <div className="bg-gray-100 dark:bg-gray-800/50 rounded-xl p-3 mb-3 border border-gray-200 dark:border-gray-700 min-h-[100px] max-h-[300px] overflow-y-auto custom-scrollbar flex flex-col gap-3">
+                {(!ticket.comments || ticket.comments.length === 0) && (
+                   <div className="flex flex-col items-center justify-center h-full py-6 opacity-50">
+                     <MessageSquare size={24} className="mb-2" />
+                     <p className="text-xs italic">No hay mensajes. Inicia la conversación.</p>
+                   </div>
+                )}
+                
+                {ticket.comments?.map((comment) => {
+                  // LOGIC FOR RELATIVE ALIGNMENT (Me vs They)
+                  // If I am Admin: Admin comments are ME (Right), User comments are THEY (Left)
+                  // If I am User: User comments are ME (Right), Admin comments are THEY (Left)
+                  const isMe = isAdmin ? comment.isAdmin : !comment.isAdmin;
+                  
+                  return (
+                    <div key={comment.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+                       <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm shadow-sm relative group ${
+                         isMe 
+                           ? 'bg-indigo-600 text-white rounded-br-none' // My Message
+                           : comment.isAdmin
+                              ? 'bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-100 rounded-bl-none border border-amber-200 dark:border-amber-800' // Admin Message (seen by User)
+                              : 'bg-white text-gray-800 dark:bg-gray-700 dark:text-gray-100 rounded-bl-none border border-gray-200 dark:border-gray-600' // User Message (seen by Admin)
+                       }`}>
+                         {/* Name Tag */}
+                         <div className={`text-[10px] font-bold mb-0.5 opacity-80 flex items-center gap-1 ${isMe ? 'justify-end' : 'justify-start'}`}>
+                           {comment.isAdmin && <ShieldCheck size={10} />}
+                           {comment.authorName}
+                         </div>
+                         
+                         <p className="whitespace-pre-wrap leading-relaxed">{comment.text}</p>
+                         
+                         {/* Time */}
+                         <span className={`text-[9px] block mt-1 opacity-70 ${isMe ? 'text-right' : 'text-left'}`}>
+                           {new Date(comment.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                         </span>
+                       </div>
+                    </div>
+                  );
+                })}
+                <div ref={commentsEndRef} />
+              </div>
+
+              {/* Add Comment Input */}
+              {!isResolved && (
+                <form onSubmit={handleSendComment} className="relative">
+                    <input 
+                      type="text"
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                      placeholder="Escribe un mensaje..."
+                      className="w-full pl-4 pr-12 py-3 rounded-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none shadow-sm"
+                    />
+                    <button 
+                      type="submit"
+                      disabled={!newComment.trim()}
+                      className="absolute right-1.5 top-1.5 p-2 bg-indigo-600 text-white rounded-full hover:bg-indigo-700 disabled:opacity-50 disabled:bg-gray-400 transition-all flex items-center justify-center"
+                      title="Enviar mensaje"
+                    >
+                      <Send size={16} />
+                    </button>
+                </form>
+              )}
+            </div>
+
           </div>
         </div>
       </div>
