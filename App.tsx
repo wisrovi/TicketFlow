@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { Layout } from './components/Layout';
@@ -7,7 +8,7 @@ import { UserManagement } from './components/UserManagement';
 import { SubjectManagement } from './components/SubjectManagement';
 import { DataManagement } from './components/DataManagement';
 import { MyTickets } from './components/MyTickets';
-import { Ticket, TicketStatus, TicketTopic, TicketPriority, FilterState, User, Subject, AppData } from './types';
+import { Ticket, TicketStatus, TicketTopic, TicketPriority, FilterState, User, Subject, AppData, Comment } from './types';
 import { Filter, Search, Inbox, CheckCircle2, Clock, CalendarDays, Flame, Archive, RotateCcw, X, User as UserIcon, Download } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -45,7 +46,6 @@ const App: React.FC = () => {
         localStorage.setItem('wticketflow_users', localStorage.getItem('ticketflow_users') || '[]');
         localStorage.setItem('wticketflow_subjects', localStorage.getItem('ticketflow_subjects') || '[]');
         localStorage.setItem('wticketflow_theme', localStorage.getItem('ticketflow_theme') || 'light');
-        // Optional: Clean up old keys? No, better keep them as backup.
     }
 
     const savedTickets = localStorage.getItem('wticketflow_tickets');
@@ -61,18 +61,20 @@ const App: React.FC = () => {
         
         // 1. Assign sequential numbers if missing
         const missingNumbers = parsedTickets.some((t: any) => t.number === undefined);
-        
         // 2. Assign default priority if missing
         const missingPriority = parsedTickets.some((t: any) => t.priority === undefined);
+        // 3. Assign empty comments array if missing
+        const missingComments = parsedTickets.some((t: any) => t.comments === undefined);
 
         let processedTickets = parsedTickets;
 
-        if (missingNumbers || missingPriority) {
+        if (missingNumbers || missingPriority || missingComments) {
             const sorted = [...parsedTickets].sort((a: any, b: any) => a.createdAt - b.createdAt);
             processedTickets = sorted.map((t, index) => ({
                 ...t,
                 number: t.number !== undefined ? t.number : index + 1,
-                priority: t.priority || TicketPriority.NORMAL
+                priority: t.priority || TicketPriority.NORMAL,
+                comments: t.comments || []
             }));
             // Sort back to match original display preference (Newest first)
             processedTickets.sort((a: Ticket, b: Ticket) => b.createdAt - a.createdAt);
@@ -143,6 +145,7 @@ const App: React.FC = () => {
       ...data,
       status: TicketStatus.OPEN,
       createdAt: Date.now(),
+      comments: []
     };
     setTickets([newTicket, ...tickets]);
     
@@ -172,6 +175,46 @@ const App: React.FC = () => {
     if (selectedTicket?.id === id) setSelectedTicket(null);
   };
 
+  const handleAddComment = (ticketId: string, text: string) => {
+    // Determine author
+    let authorName = "Admin";
+    if (!isAdmin) {
+        // If not admin, try to get user from session (MyTickets logic)
+        const myUserId = sessionStorage.getItem('ticketflow_my_user');
+        if (myUserId) {
+            const u = users.find(user => user.id === myUserId);
+            if (u) authorName = u.name;
+        } else {
+            authorName = "Usuario";
+        }
+    }
+
+    const newComment: Comment = {
+        id: uuidv4(),
+        text,
+        authorName,
+        isAdmin,
+        createdAt: Date.now()
+    };
+
+    const updatedTickets = tickets.map(t => {
+        if (t.id === ticketId) {
+            return { ...t, comments: [...(t.comments || []), newComment] };
+        }
+        return t;
+    });
+
+    setTickets(updatedTickets);
+
+    // Update selected ticket reference to show new comment immediately in modal
+    if (selectedTicket?.id === ticketId) {
+        setSelectedTicket({
+            ...selectedTicket,
+            comments: [...(selectedTicket.comments || []), newComment]
+        });
+    }
+  };
+
   const handleAddUser = (name: string) => {
     const newUser: User = { id: uuidv4(), name };
     setUsers([...users, newUser]);
@@ -195,16 +238,17 @@ const App: React.FC = () => {
   };
 
   const handleImportData = (data: AppData) => {
-    // Ensure imported tickets have numbers & priority
+    // Ensure imported tickets have numbers & priority & comments
     let processedTickets = data.tickets;
-    const needsFix = processedTickets.some(t => t.number === undefined || t.priority === undefined);
+    const needsFix = processedTickets.some(t => t.number === undefined || t.priority === undefined || t.comments === undefined);
     
     if (needsFix) {
        const sorted = [...processedTickets].sort((a, b) => a.createdAt - b.createdAt);
        processedTickets = sorted.map((t, index) => ({
            ...t,
            number: t.number !== undefined ? t.number : index + 1,
-           priority: t.priority || TicketPriority.NORMAL
+           priority: t.priority || TicketPriority.NORMAL,
+           comments: t.comments || []
        }));
        processedTickets.sort((a, b) => b.createdAt - a.createdAt);
     }
@@ -222,7 +266,7 @@ const App: React.FC = () => {
         return;
     }
 
-    const headers = ["ID", "Numero", "Titulo", "Prioridad", "Estado", "Creador", "Tema", "Fecha Creacion", "Fecha Resolucion", "Nota Resolucion", "Descripcion"];
+    const headers = ["ID", "Numero", "Titulo", "Prioridad", "Estado", "Creador", "Tema", "Fecha Creacion", "Fecha Resolucion", "Nota Resolucion", "Descripcion", "Comentarios (Conteo)"];
     const rows = tickets.map(t => [
         t.id,
         t.number,
@@ -234,7 +278,8 @@ const App: React.FC = () => {
         new Date(t.createdAt).toLocaleString(),
         t.resolvedAt ? new Date(t.resolvedAt).toLocaleString() : "",
         t.resolutionNote ? `"${t.resolutionNote.replace(/"/g, '""')}"` : "",
-        `"${t.description.replace(/"/g, '""')}"`
+        `"${t.description.replace(/"/g, '""')}"`,
+        t.comments ? t.comments.length : 0
     ]);
 
     const csvContent = "data:text/csv;charset=utf-8," 
@@ -326,6 +371,7 @@ const App: React.FC = () => {
                 isAdmin={isAdmin}
                 onResolve={handleResolveTicket}
                 onReopen={handleReopenTicket}
+                onAddComment={handleAddComment}
                 defaultExpanded={true}
              />
           </div>
@@ -376,6 +422,7 @@ const App: React.FC = () => {
           isAdmin={isAdmin} 
           onResolve={handleResolveTicket}
           onReopen={handleReopenTicket}
+          onAddComment={handleAddComment}
         />
       )}
 
@@ -515,6 +562,7 @@ const App: React.FC = () => {
                           isHighlighted={ticket.id === highlightedTicketId}
                           onResolve={handleResolveTicket}
                           onReopen={handleReopenTicket}
+                          onAddComment={handleAddComment}
                         />
                       ))}
                     </div>
@@ -614,6 +662,7 @@ const App: React.FC = () => {
                       isHighlighted={ticket.id === highlightedTicketId}
                       onResolve={handleResolveTicket}
                       onReopen={handleReopenTicket}
+                      onAddComment={handleAddComment}
                     />
                   ))}
                 </div>

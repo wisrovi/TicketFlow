@@ -1,23 +1,49 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect, useRef } from 'react';
 import { Ticket, TicketStatus, TicketTopic, TicketPriority } from '../types';
-import { CheckCircle2, Clock, User, Sparkles, ChevronDown, ChevronUp, ExternalLink, RotateCcw, X, Check, Hash, AlertCircle, FileText } from 'lucide-react';
+import { CheckCircle2, Clock, User, Sparkles, ChevronDown, ChevronUp, ExternalLink, RotateCcw, X, Check, Hash, AlertCircle, FileText, MessageSquare, Send } from 'lucide-react';
 import { getSolutionInsight } from '../services/geminiService';
 
 interface TicketCardProps {
   ticket: Ticket;
   isAdmin: boolean;
+  currentUser?: string; // Name of current user (if in MyTickets view) or just "Admin"
   isHighlighted?: boolean;
   defaultExpanded?: boolean;
   onResolve: (id: string, note?: string) => void;
   onReopen: (id: string) => void;
+  onAddComment: (ticketId: string, text: string) => void;
 }
 
-export const TicketCard: React.FC<TicketCardProps> = ({ ticket, isAdmin, isHighlighted, defaultExpanded = false, onResolve, onReopen }) => {
+export const TicketCard: React.FC<TicketCardProps> = ({ 
+  ticket, 
+  isAdmin, 
+  currentUser,
+  isHighlighted, 
+  defaultExpanded = false, 
+  onResolve, 
+  onReopen,
+  onAddComment 
+}) => {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const [aiInsight, setAiInsight] = useState<string | null>(ticket.aiSolution || null);
   const [loadingAi, setLoadingAi] = useState(false);
   const [showResolveConfirm, setShowResolveConfirm] = useState(false);
   const [resolutionNote, setResolutionNote] = useState('');
+  
+  // Comment state
+  const [newComment, setNewComment] = useState('');
+  const commentsEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    commentsEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    if (isExpanded) {
+      scrollToBottom();
+    }
+  }, [ticket.comments, isExpanded]);
 
   const handleGetInsight = async () => {
     if (aiInsight) return;
@@ -27,7 +53,15 @@ export const TicketCard: React.FC<TicketCardProps> = ({ ticket, isAdmin, isHighl
     setLoadingAi(false);
   };
 
+  const handleSendComment = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newComment.trim()) return;
+    onAddComment(ticket.id, newComment);
+    setNewComment('');
+  };
+
   const isResolved = ticket.status === TicketStatus.RESOLVED;
+  const commentCount = ticket.comments?.length || 0;
 
   const topicColors = {
     [TicketTopic.GITHUB]: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
@@ -46,7 +80,6 @@ export const TicketCard: React.FC<TicketCardProps> = ({ ticket, isAdmin, isHighl
 
   const pConfig = priorityConfig[ticket.priority] || priorityConfig[TicketPriority.NORMAL];
 
-  // Helper function to detect URLs and convert them to links
   const renderDescriptionWithLinks = (text: string) => {
     if (!text) return null;
     const urlRegex = /(https?:\/\/[^\s]+)/g;
@@ -195,6 +228,12 @@ export const TicketCard: React.FC<TicketCardProps> = ({ ticket, isAdmin, isHighl
             <User size={14} />
             <span className="font-medium text-xs">{ticket.creatorName}</span>
           </div>
+          {commentCount > 0 && (
+             <div className="flex items-center gap-1 text-gray-400 dark:text-gray-500">
+               <MessageSquare size={14} />
+               <span className="text-xs">{commentCount}</span>
+             </div>
+          )}
         </div>
 
         <button 
@@ -224,7 +263,7 @@ export const TicketCard: React.FC<TicketCardProps> = ({ ticket, isAdmin, isHighl
             
             {/* Resolution Section with Note */}
             {isResolved && ticket.resolvedAt && (
-               <div className="mb-4 text-green-700 dark:text-green-400 text-xs font-medium bg-green-50 dark:bg-green-900/20 p-3 rounded-lg border border-green-100 dark:border-green-900/30 animate-in fade-in slide-in-from-left-2 duration-500">
+               <div className="mb-6 text-green-700 dark:text-green-400 text-xs font-medium bg-green-50 dark:bg-green-900/20 p-3 rounded-lg border border-green-100 dark:border-green-900/30">
                  <div className="flex items-center gap-2 mb-2">
                     <div className="p-1 bg-green-200 dark:bg-green-800 rounded-full">
                         <CheckCircle2 size={14} />
@@ -247,38 +286,99 @@ export const TicketCard: React.FC<TicketCardProps> = ({ ticket, isAdmin, isHighl
                </div>
             )}
 
+            {/* Comments Section */}
+            <div className="border-t border-gray-200 dark:border-gray-600 pt-4 mt-2">
+              <h4 className="font-bold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-2">
+                <MessageSquare size={16} /> Comentarios / Hilo
+              </h4>
+              
+              <div className="space-y-3 mb-4 max-h-60 overflow-y-auto custom-scrollbar pr-2">
+                {(!ticket.comments || ticket.comments.length === 0) && (
+                   <p className="text-gray-400 dark:text-gray-500 italic text-xs text-center py-2">No hay comentarios aún. Inicia la conversación.</p>
+                )}
+                {ticket.comments?.map((comment) => (
+                  <div key={comment.id} className={`flex flex-col ${comment.isAdmin ? 'items-end' : 'items-start'}`}>
+                     <div className={`max-w-[85%] rounded-2xl px-3 py-2 text-xs shadow-sm ${
+                       comment.isAdmin 
+                         ? 'bg-indigo-100 text-indigo-900 dark:bg-indigo-900/40 dark:text-indigo-200 rounded-br-none' 
+                         : 'bg-white text-gray-700 dark:bg-gray-600 dark:text-gray-100 rounded-bl-none border border-gray-100 dark:border-gray-500'
+                     }`}>
+                       <div className="font-bold mb-0.5 text-[10px] opacity-75">
+                         {comment.authorName} {comment.isAdmin && '(Admin)'}
+                       </div>
+                       <p className="whitespace-pre-wrap leading-relaxed">{comment.text}</p>
+                     </div>
+                     <span className="text-[9px] text-gray-400 mt-0.5 px-1">
+                       {new Date(comment.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                     </span>
+                  </div>
+                ))}
+                <div ref={commentsEndRef} />
+              </div>
+
+              {/* Add Comment Input */}
+              {!isResolved && (
+                <form onSubmit={handleSendComment} className="flex gap-2 items-end">
+                    <textarea 
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                      placeholder="Escribe un comentario o actualización..."
+                      className="flex-1 text-sm p-2.5 rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-900 focus:border-indigo-400 outline-none resize-none"
+                      rows={1}
+                      style={{ minHeight: '40px' }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSendComment(e);
+                        }
+                      }}
+                    />
+                    <button 
+                      type="submit"
+                      disabled={!newComment.trim()}
+                      className="p-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+                      title="Enviar comentario"
+                    >
+                      <Send size={16} />
+                    </button>
+                </form>
+              )}
+            </div>
+
             {/* AI Insights (Admin Only) */}
             {isAdmin && !isResolved && (
-              <div className="bg-white dark:bg-gray-800 border border-indigo-100 dark:border-indigo-900/30 rounded-lg p-3 shadow-sm">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="flex items-center gap-2 text-indigo-700 dark:text-indigo-400 font-semibold text-xs uppercase tracking-wide">
-                    <Sparkles size={14} /> AI Insight
-                  </span>
-                  {!aiInsight && !loadingAi && (
-                    <button 
-                      onClick={handleGetInsight}
-                      className="text-xs bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 px-2 py-1 rounded transition-colors"
-                      title="Generar posibles soluciones con IA"
-                    >
-                      Generar Sugerencias
-                    </button>
+              <div className="mt-6 border-t border-gray-200 dark:border-gray-600 pt-4">
+                <div className="bg-white dark:bg-gray-800 border border-indigo-100 dark:border-indigo-900/30 rounded-lg p-3 shadow-sm">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="flex items-center gap-2 text-indigo-700 dark:text-indigo-400 font-semibold text-xs uppercase tracking-wide">
+                      <Sparkles size={14} /> AI Insight
+                    </span>
+                    {!aiInsight && !loadingAi && (
+                      <button 
+                        onClick={handleGetInsight}
+                        className="text-xs bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 px-2 py-1 rounded transition-colors"
+                        title="Generar posibles soluciones con IA"
+                      >
+                        Generar Sugerencias
+                      </button>
+                    )}
+                  </div>
+                  
+                  {loadingAi && (
+                    <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400 py-2">
+                      <div className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                      Generando respuesta...
+                    </div>
+                  )}
+
+                  {aiInsight && (
+                    <div className="prose prose-sm max-w-none text-gray-600 dark:text-gray-300">
+                      <React.Fragment>
+                        {aiInsight.split('\n').map((line, i) => <p key={i} className="my-1">{line}</p>)}
+                      </React.Fragment>
+                    </div>
                   )}
                 </div>
-                
-                {loadingAi && (
-                  <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400 py-2">
-                    <div className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-                    Generando respuesta...
-                  </div>
-                )}
-
-                {aiInsight && (
-                  <div className="prose prose-sm max-w-none text-gray-600 dark:text-gray-300">
-                    <React.Fragment>
-                       {aiInsight.split('\n').map((line, i) => <p key={i} className="my-1">{line}</p>)}
-                    </React.Fragment>
-                  </div>
-                )}
               </div>
             )}
           </div>

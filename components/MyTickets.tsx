@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { Ticket, User, TicketStatus } from '../types';
 import { TicketCard } from './TicketCard';
@@ -9,9 +10,10 @@ interface MyTicketsProps {
   isAdmin: boolean;
   onResolve: (id: string) => void;
   onReopen: (id: string) => void;
+  onAddComment: (ticketId: string, text: string) => void;
 }
 
-export const MyTickets: React.FC<MyTicketsProps> = ({ tickets, users, isAdmin, onResolve, onReopen }) => {
+export const MyTickets: React.FC<MyTicketsProps> = ({ tickets, users, isAdmin, onResolve, onReopen, onAddComment }) => {
   const [selectedUserId, setSelectedUserId] = useState<string>('');
 
   // Persist selected user in session for convenience
@@ -107,6 +109,7 @@ export const MyTickets: React.FC<MyTicketsProps> = ({ tickets, users, isAdmin, o
               isAdmin={isAdmin} 
               onResolve={onResolve}
               onReopen={onReopen}
+              onAddComment={onAddComment}
             />
           ))}
         </div>

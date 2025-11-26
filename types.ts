@@ -29,6 +29,14 @@ export interface Subject {
   title: string;
 }
 
+export interface Comment {
+  id: string;
+  authorName: string;
+  isAdmin: boolean;
+  text: string;
+  createdAt: number;
+}
+
 export interface Ticket {
   id: string;
   number: number; // Sequential ID
@@ -43,6 +51,7 @@ export interface Ticket {
   resolvedAt?: number; // Timestamp
   resolutionNote?: string; // How it was resolved
   aiSolution?: string; // Stored AI insight
+  comments?: Comment[]; // Thread of conversation
 }
 
 export interface FilterState {
