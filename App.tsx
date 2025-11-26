@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { v4 as uuidv4 } from 'uuid';
+import { generateId } from './utils/helpers';
 import { Layout } from './components/Layout';
 import { TicketCard } from './components/TicketCard';
 import { TicketForm } from './components/TicketForm';
@@ -138,7 +138,7 @@ const App: React.FC = () => {
         : 0;
     const nextNumber = maxNumber + 1;
 
-    const newId = uuidv4();
+    const newId = generateId();
     const newTicket: Ticket = {
       id: newId,
       number: nextNumber,
@@ -190,7 +190,7 @@ const App: React.FC = () => {
     }
 
     const newComment: Comment = {
-        id: uuidv4(),
+        id: generateId(),
         text,
         authorName,
         isAdmin,
@@ -216,7 +216,7 @@ const App: React.FC = () => {
   };
 
   const handleAddUser = (name: string) => {
-    const newUser: User = { id: uuidv4(), name };
+    const newUser: User = { id: generateId(), name };
     setUsers([...users, newUser]);
     setNotification(`Usuario ${name} añadido`);
   };
@@ -227,7 +227,7 @@ const App: React.FC = () => {
   };
 
   const handleAddSubject = (title: string) => {
-    const newSubject: Subject = { id: uuidv4(), title };
+    const newSubject: Subject = { id: generateId(), title };
     setSubjects([...subjects, newSubject]);
     setNotification(`Asunto "${title}" añadido`);
   };
