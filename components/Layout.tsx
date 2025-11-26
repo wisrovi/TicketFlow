@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { LayoutDashboard, PlusCircle, History, Users, Database, UserCircle, Tag, Sun, Moon, Lock, Unlock, UserCheck, Menu, Bell, Search, HelpCircle, Heart } from 'lucide-react';
+import { LayoutDashboard, PlusCircle, History, Users, Database, UserCircle, Tag, Sun, Moon, Lock, UserCheck, Menu, HelpCircle, Heart, ChevronLeft, ChevronRight } from 'lucide-react';
 import { AboutModal } from './AboutModal';
+import { HelpModal } from './HelpModal';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -21,55 +22,80 @@ export const Layout: React.FC<LayoutProps> = ({
   isDarkMode,
   onToggleTheme
 }) => {
-  const [isSidebarOpen, setSidebarOpen] = useState(false);
+  const [isSidebarOpen, setSidebarOpen] = useState(false); // Mobile state
+  const [isCollapsed, setIsCollapsed] = useState(false); // Desktop collapsed state
   const [isAboutOpen, setAboutOpen] = useState(false);
+  const [isHelpOpen, setHelpOpen] = useState(false);
 
-  const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'mytickets', label: 'Mis Tickets', icon: UserCheck },
-    { id: 'create', label: 'Nuevo Ticket', icon: PlusCircle },
-    { id: 'history', label: 'Historial', icon: History },
-    { id: 'users', label: 'Usuarios', icon: Users },
-    { id: 'subjects', label: 'Asuntos', icon: Tag },
-    { id: 'data', label: 'Datos / Backup', icon: Database },
+  // Define nav items with allowed roles ('all', 'admin', 'user')
+  const allNavItems = [
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['all'] },
+    { id: 'mytickets', label: 'Mis Tickets', icon: UserCheck, roles: ['user'] },
+    { id: 'create', label: 'Nuevo Ticket', icon: PlusCircle, roles: ['all'] },
+    { id: 'history', label: 'Historial', icon: History, roles: ['admin'] },
+    { id: 'users', label: 'Usuarios', icon: Users, roles: ['admin'] },
+    { id: 'subjects', label: 'Asuntos', icon: Tag, roles: ['admin'] },
+    { id: 'data', label: 'Datos / Backup', icon: Database, roles: ['admin'] },
   ] as const;
+
+  // Filter items based on current role
+  const navItems = allNavItems.filter(item => {
+    const roles = item.roles as readonly string[];
+    if (roles.includes('all')) return true;
+    if (isAdmin && roles.includes('admin')) return true;
+    if (!isAdmin && roles.includes('user')) return true;
+    return false;
+  });
 
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300 font-sans text-gray-900 dark:text-gray-100 overflow-hidden">
       
-      {/* --- SIDEBAR (Navigation Only) --- */}
+      {/* --- SIDEBAR --- */}
       <aside 
-        className={`fixed inset-y-0 left-0 z-30 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 shadow-xl md:shadow-none transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
+        className={`fixed inset-y-0 left-0 z-30 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 shadow-xl md:shadow-none transition-all duration-300 ease-in-out 
+        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} 
+        md:translate-x-0 md:relative 
+        ${isCollapsed ? 'w-20' : 'w-64'}
+        `}
       >
         <div className="h-full flex flex-col">
           {/* Logo Area */}
-          <div className="h-16 flex items-center gap-3 px-6 border-b border-gray-100 dark:border-gray-700">
-            <div className="w-8 h-8 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold shadow-md shadow-indigo-200 dark:shadow-none">
+          <div className={`h-16 flex items-center ${isCollapsed ? 'justify-center' : 'px-6 gap-3'} border-b border-gray-100 dark:border-gray-700 transition-all`}>
+            <div className="w-8 h-8 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold shadow-md shadow-indigo-200 dark:shadow-none shrink-0">
               wT
             </div>
-            <span className="text-xl font-bold text-gray-800 dark:text-white tracking-tight">wTicketFlow</span>
+            {!isCollapsed && (
+              <span className="text-xl font-bold text-gray-800 dark:text-white tracking-tight animate-in fade-in duration-200">wTicketFlow</span>
+            )}
           </div>
 
           {/* Navigation Items */}
           <nav className="flex-1 py-6 px-3 space-y-1 overflow-y-auto custom-scrollbar">
-            <div className="px-3 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-              Menu Principal
-            </div>
+            {!isCollapsed && (
+              <div className="px-3 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider transition-opacity duration-200">
+                Menu Principal
+              </div>
+            )}
+            
             {navItems.map((item) => (
               <button
                 key={item.id}
                 onClick={() => {
-                  onTabChange(item.id);
+                  onTabChange(item.id as any);
                   setSidebarOpen(false);
                 }}
+                title={isCollapsed ? item.label : ''}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group relative ${
                   activeTab === item.id 
                     ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 font-semibold' 
                     : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700/50 hover:text-gray-900 dark:hover:text-gray-200'
-                }`}
+                } ${isCollapsed ? 'justify-center' : ''}`}
               >
-                <item.icon size={20} className={`${activeTab === item.id ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`} />
-                <span>{item.label}</span>
+                <item.icon size={20} className={`shrink-0 ${activeTab === item.id ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`} />
+                
+                {!isCollapsed && (
+                  <span className="truncate">{item.label}</span>
+                )}
                 
                 {/* Active Indicator Strip */}
                 {activeTab === item.id && (
@@ -79,15 +105,26 @@ export const Layout: React.FC<LayoutProps> = ({
             ))}
           </nav>
 
-          {/* Sidebar Footer (Version) */}
-          <div className="p-4 border-t border-gray-100 dark:border-gray-700 text-center md:text-left">
-             <button 
-               onClick={() => setAboutOpen(true)}
-               className="text-xs text-gray-400 hover:text-indigo-500 transition-colors flex items-center gap-1.5 px-2"
+          {/* Sidebar Footer (Collapse Toggle & Version) */}
+          <div className="p-4 border-t border-gray-100 dark:border-gray-700 flex flex-col gap-2 items-center md:items-stretch">
+             {/* Collapse Button (Desktop Only) */}
+             <button
+               onClick={() => setIsCollapsed(!isCollapsed)}
+               className="hidden md:flex items-center justify-center p-2 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+               title={isCollapsed ? "Expandir menú" : "Contraer menú"}
              >
-               <HelpCircle size={12} />
-               <span>Versión 1.2.0</span>
+               {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
              </button>
+
+             {!isCollapsed && (
+               <button 
+                 onClick={() => setAboutOpen(true)}
+                 className="text-xs text-gray-400 hover:text-indigo-500 transition-colors flex items-center gap-1.5 px-2 justify-center md:justify-start"
+               >
+                 <Heart size={12} className="shrink-0" />
+                 <span className="truncate">Versión 1.2.0</span>
+               </button>
+             )}
           </div>
         </div>
       </aside>
@@ -107,7 +144,7 @@ export const Layout: React.FC<LayoutProps> = ({
               <Menu size={24} />
             </button>
             <h1 className="text-lg font-semibold text-gray-800 dark:text-white hidden md:block capitalize">
-              {navItems.find(n => n.id === activeTab)?.label}
+              {allNavItems.find(n => n.id === activeTab)?.label}
             </h1>
           </div>
 
@@ -116,14 +153,23 @@ export const Layout: React.FC<LayoutProps> = ({
             
             {/* Admin Switch */}
             <div className="flex items-center mr-2">
-               <label className="relative inline-flex items-center cursor-pointer group">
+               <label className="relative inline-flex items-center cursor-pointer group" title="Alternar entre vista de Administrador y Usuario">
                 <input type="checkbox" className="sr-only peer" checked={isAdmin} onChange={onToggleAdmin} />
                 <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-purple-600"></div>
-                <span className={`ml-2 text-sm font-medium transition-colors hidden sm:block ${isAdmin ? 'text-purple-600 dark:text-purple-400' : 'text-gray-500'}`}>
+                <span className={`ml-2 text-sm font-medium transition-colors hidden lg:block ${isAdmin ? 'text-purple-600 dark:text-purple-400' : 'text-gray-500'}`}>
                   {isAdmin ? 'Modo Admin' : 'Modo Usuario'}
                 </span>
               </label>
             </div>
+
+            {/* Help Button */}
+            <button 
+              onClick={() => setHelpOpen(true)}
+              className="p-2 text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-full transition-all"
+              title="Ayuda / Instrucciones"
+            >
+              <HelpCircle size={20} />
+            </button>
 
             {/* Theme Toggle */}
             <button 
@@ -134,12 +180,13 @@ export const Layout: React.FC<LayoutProps> = ({
               {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
             </button>
 
-            {/* About Profile Trigger */}
+            {/* Profile Trigger */}
             <div className="h-8 w-px bg-gray-200 dark:bg-gray-700 mx-1 hidden md:block"></div>
             
             <button
               onClick={() => setAboutOpen(true)}
               className="flex items-center gap-2 pl-2 md:pl-4 focus:outline-none group"
+              title="Ver perfil del autor"
             >
               <div className="text-right hidden md:block">
                 <p className="text-sm font-medium text-gray-700 dark:text-gray-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
@@ -172,8 +219,9 @@ export const Layout: React.FC<LayoutProps> = ({
                  <button onClick={() => setAboutOpen(true)} className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
                    Acerca del autor
                  </button>
-                 <a href="#" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Documentación</a>
-                 <a href="#" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Soporte</a>
+                 <button onClick={() => setHelpOpen(true)} className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                   Ayuda
+                 </button>
                </div>
 
                <div className="flex items-center gap-1 text-xs opacity-70">
@@ -194,8 +242,9 @@ export const Layout: React.FC<LayoutProps> = ({
         ></div>
       )}
 
-      {/* --- ABOUT MODAL --- */}
+      {/* --- MODALS --- */}
       <AboutModal isOpen={isAboutOpen} onClose={() => setAboutOpen(false)} />
+      <HelpModal isOpen={isHelpOpen} onClose={() => setHelpOpen(false)} />
     </div>
   );
 };
