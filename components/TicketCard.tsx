@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Ticket, TicketStatus, TicketTopic, TicketPriority } from '../types';
-import { CheckCircle2, Clock, User, Sparkles, ChevronDown, ChevronUp, ExternalLink, RotateCcw, Check, Hash, AlertCircle, FileText, MessageSquare, Send, ShieldCheck } from 'lucide-react';
+import { CheckCircle2, Clock, User, Sparkles, ChevronDown, ChevronUp, ExternalLink, RotateCcw, Check, Hash, AlertCircle, FileText, MessageSquare, Send, ShieldCheck, Bold, Italic, List } from 'lucide-react';
 import { getSolutionInsight } from '../services/geminiService';
 
 interface TicketCardProps {
@@ -34,6 +34,7 @@ export const TicketCard: React.FC<TicketCardProps> = ({
   // Comment state
   const [newComment, setNewComment] = useState('');
   const commentsEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const scrollToBottom = () => {
     commentsEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -62,11 +63,98 @@ export const TicketCard: React.FC<TicketCardProps> = ({
     setLoadingAi(false);
   };
 
-  const handleSendComment = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSendComment = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!newComment.trim()) return;
     onAddComment(ticket.id, newComment);
     setNewComment('');
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendComment();
+    }
+  };
+
+  // --- Markdown Logic ---
+
+  const insertFormat = (prefix: string, suffix: string) => {
+    if (!textareaRef.current) return;
+    
+    const start = textareaRef.current.selectionStart;
+    const end = textareaRef.current.selectionEnd;
+    const text = textareaRef.current.value;
+    
+    const before = text.substring(0, start);
+    const selection = text.substring(start, end);
+    const after = text.substring(end);
+    
+    const newText = before + prefix + selection + suffix + after;
+    setNewComment(newText);
+    
+    // Restore focus and cursor
+    setTimeout(() => {
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+        textareaRef.current.setSelectionRange(start + prefix.length, end + prefix.length);
+      }
+    }, 0);
+  };
+
+  // Simple Markdown Parser (No external libraries)
+  // Supports: **Bold**, *Italic*, - List items, Links
+  const renderMarkdown = (text: string) => {
+    const lines = text.split('\n');
+    return lines.map((line, lineIndex) => {
+      // Handle Lists
+      if (line.trim().startsWith('- ')) {
+        return (
+          <li key={lineIndex} className="ml-4 list-disc pl-1">
+            {parseInlineStyles(line.trim().substring(2))}
+          </li>
+        );
+      }
+      // Handle empty lines
+      if (line.trim() === '') {
+        return <br key={lineIndex} />;
+      }
+      // Handle Normal Paragraphs
+      return <div key={lineIndex} className="min-h-[1.2em]">{parseInlineStyles(line)}</div>;
+    });
+  };
+
+  const parseInlineStyles = (text: string) => {
+    // We split by tokens. Warning: This is a simple parser and doesn't handle nested styles perfectly.
+    // Regex matches: **bold** OR *italic* OR url
+    const parts = text.split(/(\*\*.*?\*\*|\*.*?\*|https?:\/\/[^\s]+)/g);
+    
+    return parts.map((part, i) => {
+      // Bold
+      if (part.startsWith('**') && part.endsWith('**') && part.length >= 4) {
+        return <strong key={i}>{part.slice(2, -2)}</strong>;
+      }
+      // Italic
+      if (part.startsWith('*') && part.endsWith('*') && part.length >= 2) {
+        return <em key={i}>{part.slice(1, -1)}</em>;
+      }
+      // Link
+      if (part.match(/^https?:\/\//)) {
+         return (
+          <a 
+            key={i} 
+            href={part} 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className="text-indigo-200 hover:text-white underline decoration-indigo-300/50 underline-offset-2 break-all"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {part} <ExternalLink size={10} className="inline ml-0.5" />
+          </a>
+        );
+      }
+      return part;
+    });
   };
 
   const isResolved = ticket.status === TicketStatus.RESOLVED;
@@ -333,39 +421,39 @@ export const TicketCard: React.FC<TicketCardProps> = ({
                 <MessageSquare size={16} /> Chat del Ticket
               </h4>
               
-              <div className="bg-gray-100 dark:bg-gray-800/50 rounded-xl p-3 mb-3 border border-gray-200 dark:border-gray-700 min-h-[100px] max-h-[300px] overflow-y-auto custom-scrollbar flex flex-col gap-3">
+              <div className="bg-gray-100 dark:bg-gray-800/50 rounded-xl p-3 mb-3 border border-gray-200 dark:border-gray-700 min-h-[100px] max-h-[400px] overflow-y-auto custom-scrollbar flex flex-col gap-3">
                 {(!ticket.comments || ticket.comments.length === 0) && (
-                   <div className="flex flex-col items-center justify-center h-full py-6 opacity-50">
-                     <MessageSquare size={24} className="mb-2" />
-                     <p className="text-xs italic">No hay mensajes. Inicia la conversación.</p>
+                   <div className="flex flex-col items-center justify-center h-full py-8 opacity-50">
+                     <MessageSquare size={32} className="mb-2 text-gray-400" />
+                     <p className="text-xs italic text-gray-500">No hay mensajes. Inicia la conversación.</p>
                    </div>
                 )}
                 
                 {ticket.comments?.map((comment) => {
-                  // LOGIC FOR RELATIVE ALIGNMENT (Me vs They)
-                  // If I am Admin: Admin comments are ME (Right), User comments are THEY (Left)
-                  // If I am User: User comments are ME (Right), Admin comments are THEY (Left)
                   const isMe = isAdmin ? comment.isAdmin : !comment.isAdmin;
                   
                   return (
-                    <div key={comment.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-                       <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm shadow-sm relative group ${
+                    <div key={comment.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-full`}>
+                       <div className={`max-w-[90%] rounded-2xl px-4 py-3 text-sm shadow-sm relative group ${
                          isMe 
                            ? 'bg-indigo-600 text-white rounded-br-none' // My Message
                            : comment.isAdmin
-                              ? 'bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-100 rounded-bl-none border border-amber-200 dark:border-amber-800' // Admin Message (seen by User)
-                              : 'bg-white text-gray-800 dark:bg-gray-700 dark:text-gray-100 rounded-bl-none border border-gray-200 dark:border-gray-600' // User Message (seen by Admin)
+                              ? 'bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-100 rounded-bl-none border border-amber-200 dark:border-amber-800' // Admin Message
+                              : 'bg-white text-gray-800 dark:bg-gray-700 dark:text-gray-100 rounded-bl-none border border-gray-200 dark:border-gray-600' // User Message
                        }`}>
                          {/* Name Tag */}
-                         <div className={`text-[10px] font-bold mb-0.5 opacity-80 flex items-center gap-1 ${isMe ? 'justify-end' : 'justify-start'}`}>
+                         <div className={`text-[10px] font-bold mb-1 opacity-80 flex items-center gap-1 ${isMe ? 'justify-end' : 'justify-start'}`}>
                            {comment.isAdmin && <ShieldCheck size={10} />}
                            {comment.authorName}
                          </div>
                          
-                         <p className="whitespace-pre-wrap leading-relaxed">{comment.text}</p>
+                         {/* Styled Content (Markdown support) */}
+                         <div className="leading-relaxed break-words">
+                            {renderMarkdown(comment.text)}
+                         </div>
                          
                          {/* Time */}
-                         <span className={`text-[9px] block mt-1 opacity-70 ${isMe ? 'text-right' : 'text-left'}`}>
+                         <span className={`text-[9px] block mt-1.5 opacity-70 ${isMe ? 'text-right' : 'text-left'}`}>
                            {new Date(comment.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                          </span>
                        </div>
@@ -375,25 +463,60 @@ export const TicketCard: React.FC<TicketCardProps> = ({
                 <div ref={commentsEndRef} />
               </div>
 
-              {/* Add Comment Input */}
+              {/* Add Comment Input (Rich Editor) */}
               {!isResolved && (
-                <form onSubmit={handleSendComment} className="relative">
-                    <input 
-                      type="text"
-                      value={newComment}
-                      onChange={(e) => setNewComment(e.target.value)}
-                      placeholder="Escribe un mensaje..."
-                      className="w-full pl-4 pr-12 py-3 rounded-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none shadow-sm"
-                    />
+                <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-300 dark:border-gray-600 shadow-sm focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-transparent transition-all overflow-hidden">
+                  
+                  {/* Toolbar */}
+                  <div className="flex items-center gap-1 px-2 py-1.5 bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
                     <button 
-                      type="submit"
-                      disabled={!newComment.trim()}
-                      className="absolute right-1.5 top-1.5 p-2 bg-indigo-600 text-white rounded-full hover:bg-indigo-700 disabled:opacity-50 disabled:bg-gray-400 transition-all flex items-center justify-center"
-                      title="Enviar mensaje"
+                      type="button" 
+                      onClick={() => insertFormat('**', '**')}
+                      className="p-1.5 text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-indigo-400 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
+                      title="Negrita"
                     >
-                      <Send size={16} />
+                      <Bold size={14} />
                     </button>
-                </form>
+                    <button 
+                      type="button" 
+                      onClick={() => insertFormat('*', '*')}
+                      className="p-1.5 text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-indigo-400 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
+                      title="Cursiva"
+                    >
+                      <Italic size={14} />
+                    </button>
+                    <button 
+                      type="button" 
+                      onClick={() => insertFormat('- ', '')}
+                      className="p-1.5 text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-indigo-400 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
+                      title="Lista"
+                    >
+                      <List size={14} />
+                    </button>
+                    <div className="flex-1"></div>
+                    <span className="text-[10px] text-gray-400 mr-2 hidden sm:block">Soporta Markdown</span>
+                  </div>
+
+                  <form onSubmit={handleSendComment} className="relative flex items-end">
+                      <textarea
+                        ref={textareaRef}
+                        value={newComment}
+                        onChange={(e) => setNewComment(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        placeholder="Escribe un mensaje... (Shift+Enter para nueva línea)"
+                        rows={2}
+                        className="w-full pl-4 pr-12 py-3 bg-transparent text-gray-900 dark:text-gray-100 outline-none resize-y min-h-[50px] max-h-[150px]"
+                      />
+                      <button 
+                        type="submit"
+                        disabled={!newComment.trim()}
+                        className="absolute right-2 bottom-2 p-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 disabled:opacity-50 disabled:bg-gray-400 transition-all flex items-center justify-center shadow-md"
+                        title="Enviar mensaje"
+                      >
+                        <Send size={16} />
+                      </button>
+                  </form>
+                </div>
               )}
             </div>
 
