@@ -1,0 +1,5 @@
+{
+  "name": "TicketFlow AI",
+  "description": "A modern ticket management system powered by Gemini AI for auto-categorization and solution insights.",
+  "requestFramePermissions": []
+}
