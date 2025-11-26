@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Ticket, TicketStatus, TicketTopic, TicketPriority } from '../types';
-import { CheckCircle2, Clock, User, Sparkles, ChevronDown, ChevronUp, ExternalLink, RotateCcw, X, Check, Hash, AlertCircle, FileText, MessageSquare, Send, ShieldCheck } from 'lucide-react';
+import { CheckCircle2, Clock, User, Sparkles, ChevronDown, ChevronUp, ExternalLink, RotateCcw, Check, Hash, AlertCircle, FileText, MessageSquare, Send, ShieldCheck } from 'lucide-react';
 import { getSolutionInsight } from '../services/geminiService';
 
 interface TicketCardProps {
@@ -41,7 +41,16 @@ export const TicketCard: React.FC<TicketCardProps> = ({
 
   useEffect(() => {
     if (isExpanded) {
+      // Scroll inmediato para nuevos comentarios
       scrollToBottom();
+      
+      // Scroll con retardo para asegurar visibilidad después de la animación de expansión
+      // La transición dura 300ms (duration-300), esperamos 350ms
+      const timer = setTimeout(() => {
+        scrollToBottom();
+      }, 350);
+      
+      return () => clearTimeout(timer);
     }
   }, [ticket.comments, isExpanded]);
 
