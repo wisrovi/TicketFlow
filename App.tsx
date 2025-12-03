@@ -21,11 +21,16 @@ const App: React.FC = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
   
-  // Theme State - Initialize with Dark Mode by default
+  // Theme State
   const [isDarkMode, setIsDarkMode] = useState(() => {
     const savedTheme = localStorage.getItem('wticketflow_theme');
-    // If saved, use preference. If not saved, default to TRUE (Dark).
     return savedTheme ? savedTheme === 'dark' : true;
+  });
+
+  // AI Feature Flag State (Default: False)
+  const [isAiEnabled, setIsAiEnabled] = useState(() => {
+    const savedAi = localStorage.getItem('wticketflow_ai_enabled');
+    return savedAi ? savedAi === 'true' : false;
   });
   
   // Highlight New Ticket State
@@ -62,32 +67,23 @@ const App: React.FC = () => {
 
   // Load from LocalStorage on mount
   useEffect(() => {
-    // Migration Logic: Check if old 'ticketflow_' keys exist, if so, migrate to 'wticketflow_'
     if (localStorage.getItem('ticketflow_tickets') && !localStorage.getItem('wticketflow_tickets')) {
         localStorage.setItem('wticketflow_tickets', localStorage.getItem('ticketflow_tickets') || '[]');
         localStorage.setItem('wticketflow_users', localStorage.getItem('ticketflow_users') || '[]');
         localStorage.setItem('wticketflow_subjects', localStorage.getItem('ticketflow_subjects') || '[]');
-        // Don't migrate theme here to allow default dark mode override if user hasn't explicitly set wticketflow_theme
     }
 
     const savedTickets = localStorage.getItem('wticketflow_tickets');
     const savedUsers = localStorage.getItem('wticketflow_users');
     const savedSubjects = localStorage.getItem('wticketflow_subjects');
-    // Note: Theme is handled in useState initialization
     
     if (savedTickets) {
       try { 
         const parsedTickets = JSON.parse(savedTickets);
-        // Migration & Validation
         let needsUpdate = false;
-        
-        // 1. Assign sequential numbers if missing
         const missingNumbers = parsedTickets.some((t: any) => t.number === undefined);
-        // 2. Assign default priority if missing
         const missingPriority = parsedTickets.some((t: any) => t.priority === undefined);
-        // 3. Assign empty comments array if missing
         const missingComments = parsedTickets.some((t: any) => t.comments === undefined);
-
         let processedTickets = parsedTickets;
 
         if (missingNumbers || missingPriority || missingComments) {
@@ -98,11 +94,9 @@ const App: React.FC = () => {
                 priority: t.priority || TicketPriority.NORMAL,
                 comments: t.comments || []
             }));
-            // Sort back to match original display preference (Newest first)
             processedTickets.sort((a: Ticket, b: Ticket) => b.createdAt - a.createdAt);
             needsUpdate = true;
         }
-
         setTickets(processedTickets);
         if (needsUpdate) {
             localStorage.setItem('wticketflow_tickets', JSON.stringify(processedTickets));
@@ -123,16 +117,15 @@ const App: React.FC = () => {
     localStorage.setItem('wticketflow_users', JSON.stringify(users));
     localStorage.setItem('wticketflow_subjects', JSON.stringify(subjects));
     localStorage.setItem('wticketflow_theme', isDarkMode ? 'dark' : 'light');
+    localStorage.setItem('wticketflow_ai_enabled', String(isAiEnabled));
     
-    // Apply theme class
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
     }
-  }, [tickets, users, subjects, isDarkMode]);
+  }, [tickets, users, subjects, isDarkMode, isAiEnabled]);
 
-  // Toast Notification Logic
   useEffect(() => {
     if (notification) {
       const timer = setTimeout(() => setNotification(null), 3000);
@@ -140,7 +133,6 @@ const App: React.FC = () => {
     }
   }, [notification]);
 
-  // Clear highlight after 3 seconds
   useEffect(() => {
     if (highlightedTicketId) {
       const timer = setTimeout(() => setHighlightedTicketId(null), 3000);
@@ -151,7 +143,6 @@ const App: React.FC = () => {
   // --- Actions ---
 
   const handleCreateTicket = (data: { title: string; description: string; creatorName: string; creatorId: string; topic: TicketTopic; priority: TicketPriority }) => {
-    // Calculate next ticket number
     const maxNumber = tickets.length > 0 
         ? Math.max(...tickets.map(t => t.number || 0)) 
         : 0;
@@ -168,10 +159,8 @@ const App: React.FC = () => {
     };
     setTickets([newTicket, ...tickets]);
     
-    // Switch to dashboard and highlight the new ticket
     setActiveTab('dashboard');
     setHighlightedTicketId(newId);
-    
     setNotification(`Ticket #${nextNumber} creado exitosamente`);
   };
 
@@ -181,7 +170,6 @@ const App: React.FC = () => {
       t.id === id ? { ...t, status: TicketStatus.RESOLVED, resolvedAt: Date.now(), resolutionNote: note } : t
     ));
     setNotification("Ticket marcado como resuelto");
-    // If resolved from modal, close modal
     if (selectedTicket?.id === id) setSelectedTicket(null);
   };
 
@@ -195,10 +183,8 @@ const App: React.FC = () => {
   };
 
   const handleAddComment = (ticketId: string, text: string) => {
-    // Determine author
     let authorName = "Admin";
     if (!isAdmin) {
-        // If not admin, try to get user from session (MyTickets logic)
         const myUserId = sessionStorage.getItem('ticketflow_my_user');
         if (myUserId) {
             const u = users.find(user => user.id === myUserId);
@@ -225,7 +211,6 @@ const App: React.FC = () => {
 
     setTickets(updatedTickets);
 
-    // Update selected ticket reference to show new comment immediately in modal
     if (selectedTicket?.id === ticketId) {
         setSelectedTicket({
             ...selectedTicket,
@@ -257,7 +242,6 @@ const App: React.FC = () => {
   };
 
   const handleImportData = (data: AppData) => {
-    // Ensure imported tickets have numbers & priority & comments
     let processedTickets = data.tickets;
     const needsFix = processedTickets.some(t => t.number === undefined || t.priority === undefined || t.comments === undefined);
     
@@ -289,7 +273,7 @@ const App: React.FC = () => {
     const rows = tickets.map(t => [
         t.id,
         t.number,
-        `"${t.title.replace(/"/g, '""')}"`, // Escape quotes
+        `"${t.title.replace(/"/g, '""')}"`,
         t.priority,
         t.status,
         t.creatorName,
@@ -315,8 +299,7 @@ const App: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
-  // --- Filtering Logic for Dashboard/History ---
-
+  // --- Filtering & Stats ---
   const filteredTickets = useMemo(() => {
     return tickets.filter(ticket => {
       const matchesStatus = filters.status === 'ALL' || ticket.status === filters.status;
@@ -331,17 +314,14 @@ const App: React.FC = () => {
         matchesDate = matchesDate && ticket.createdAt >= new Date(filters.dateStart).getTime();
       }
       if (filters.dateEnd) {
-        // End of the day
         const endDate = new Date(filters.dateEnd);
         endDate.setHours(23, 59, 59, 999);
         matchesDate = matchesDate && ticket.createdAt <= endDate.getTime();
       }
-
       return matchesStatus && matchesTopic && matchesPriority && matchesSearch && matchesDate;
     });
   }, [tickets, filters]);
 
-  // Dashboard Stats
   const stats = useMemo(() => {
     return {
       open: tickets.filter(t => t.status === TicketStatus.OPEN).length,
@@ -351,8 +331,6 @@ const App: React.FC = () => {
   }, [tickets]);
 
   // --- Rendering ---
-
-  // Special Case: Full Screen Presentation (Bypasses Layout)
   if (activeTab === 'presentation') {
       return <Presentation onExit={() => setActiveTab('dashboard')} />;
   }
@@ -364,28 +342,23 @@ const App: React.FC = () => {
           <TicketForm 
             users={users} 
             subjects={subjects}
+            isAiEnabled={isAiEnabled}
             onSubmit={handleCreateTicket} 
             onCancel={() => setActiveTab('dashboard')}
             onNavigateToUsers={() => setActiveTab('users')}
             onNavigateToSubjects={() => setActiveTab('subjects')}
           />
         );
-      
       case 'users':
         return <UserManagement users={users} onAddUser={handleAddUser} onDeleteUser={handleDeleteUser} />;
-      
       case 'subjects':
         return <SubjectManagement subjects={subjects} onAddSubject={handleAddSubject} onDeleteSubject={handleDeleteSubject} />;
-        
       case 'data':
         return <DataManagement data={{ tickets, users, subjects }} onImport={handleImportData} />;
-      
       case 'settings':
-        return <Settings isDarkMode={isDarkMode} onToggleTheme={() => setIsDarkMode(!isDarkMode)} />;
-      
+        return <Settings isDarkMode={isDarkMode} onToggleTheme={() => setIsDarkMode(!isDarkMode)} isAiEnabled={isAiEnabled} onToggleAi={() => setIsAiEnabled(!isAiEnabled)} />;
       case 'about':
         return <AboutView />;
-
       case 'history':
         return (
           <div className="space-y-6 animate-in fade-in duration-500">
@@ -396,60 +369,36 @@ const App: React.FC = () => {
                   </h2>
                   <p className="text-sm text-gray-500 dark:text-gray-400">Total: {filteredTickets.length} tickets</p>
                </div>
-               <button 
-                 onClick={handleExportCSV}
-                 className="flex items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors text-sm font-medium"
-               >
+               <button onClick={handleExportCSV} className="flex items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors text-sm font-medium">
                  <Download size={16} /> Exportar CSV
                </button>
              </div>
-
-             {/* Filters Bar */}
              <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="relative">
                   <Search className="absolute left-3 top-3 text-gray-400" size={18} />
-                  <input 
-                    type="text" 
-                    placeholder="Buscar..." 
-                    className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-800 dark:text-white"
-                    value={filters.search}
-                    onChange={(e) => setFilters({...filters, search: e.target.value})}
-                  />
+                  <input type="text" placeholder="Buscar..." className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-800 dark:text-white" value={filters.search} onChange={(e) => setFilters({...filters, search: e.target.value})} />
                 </div>
-                <select 
-                  className="px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-800 dark:text-white"
-                  value={filters.topic}
-                  onChange={(e) => setFilters({...filters, topic: e.target.value as any})}
-                >
+                <select className="px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-800 dark:text-white" value={filters.topic} onChange={(e) => setFilters({...filters, topic: e.target.value as any})}>
                   <option value="ALL">Todos los temas</option>
                   {Object.values(TicketTopic).map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
-                <select 
-                  className="px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-800 dark:text-white"
-                  value={filters.priority}
-                  onChange={(e) => setFilters({...filters, priority: e.target.value as any})}
-                >
+                <select className="px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-800 dark:text-white" value={filters.priority} onChange={(e) => setFilters({...filters, priority: e.target.value as any})}>
                   <option value="ALL">Todas las prioridades</option>
                   {Object.values(TicketPriority).map(p => <option key={p} value={p}>{p}</option>)}
                 </select>
-                <select 
-                  className="px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-800 dark:text-white"
-                  value={filters.status}
-                  onChange={(e) => setFilters({...filters, status: e.target.value as any})}
-                >
+                <select className="px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-800 dark:text-white" value={filters.status} onChange={(e) => setFilters({...filters, status: e.target.value as any})}>
                   <option value="ALL">Todos los estados</option>
                   <option value={TicketStatus.OPEN}>Abiertos</option>
                   <option value={TicketStatus.RESOLVED}>Resueltos</option>
                 </select>
              </div>
-
-             {/* List */}
              <div className="space-y-4">
                {filteredTickets.map(ticket => (
                  <TicketCard 
                    key={ticket.id} 
                    ticket={ticket} 
                    isAdmin={isAdmin} 
+                   isAiEnabled={isAiEnabled}
                    onResolve={handleResolveTicket}
                    onReopen={handleReopenTicket}
                    onAddComment={handleAddComment}
@@ -465,74 +414,46 @@ const App: React.FC = () => {
 
       case 'dashboard':
       default:
-        // CONDITIONAL DASHBOARD:
-        // If !isAdmin -> Show User Dashboard (MyTickets)
         if (!isAdmin) {
             return (
                 <MyTickets 
                     tickets={tickets} 
                     users={users} 
                     isAdmin={isAdmin} 
+                    isAiEnabled={isAiEnabled}
                     onResolve={handleResolveTicket}
                     onReopen={handleReopenTicket}
                     onAddComment={handleAddComment}
                 />
             );
         }
-
-        // If isAdmin -> Show Global Split Dashboard
         const openTickets = tickets.filter(t => t.status === TicketStatus.OPEN).sort((a, b) => b.createdAt - a.createdAt);
         const resolvedTickets = tickets.filter(t => t.status === TicketStatus.RESOLVED).sort((a, b) => (b.resolvedAt || 0) - (a.resolvedAt || 0));
 
         return (
           <div className="space-y-6 animate-in fade-in duration-500">
-            {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 flex items-center justify-between group hover:scale-[1.02] hover:shadow-lg transition-all duration-300">
-                <div>
-                  <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">Pendientes</p>
-                  <p className="text-3xl font-bold text-amber-600 dark:text-amber-500">{stats.open}</p>
-                </div>
-                <div className="bg-amber-100 dark:bg-amber-900/30 p-3 rounded-full text-amber-600 dark:text-amber-500 group-hover:rotate-12 transition-transform">
-                  <Flame size={24} />
-                </div>
+                <div><p className="text-gray-500 dark:text-gray-400 text-sm font-medium">Pendientes</p><p className="text-3xl font-bold text-amber-600 dark:text-amber-500">{stats.open}</p></div>
+                <div className="bg-amber-100 dark:bg-amber-900/30 p-3 rounded-full text-amber-600 dark:text-amber-500 group-hover:rotate-12 transition-transform"><Flame size={24} /></div>
               </div>
               <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 flex items-center justify-between group hover:scale-[1.02] hover:shadow-lg transition-all duration-300">
-                <div>
-                  <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">Urgentes</p>
-                  <p className="text-3xl font-bold text-red-600 dark:text-red-500">{stats.urgent}</p>
-                </div>
-                <div className="bg-red-100 dark:bg-red-900/30 p-3 rounded-full text-red-600 dark:text-red-500 group-hover:scale-110 transition-transform">
-                  <Clock size={24} />
-                </div>
+                <div><p className="text-gray-500 dark:text-gray-400 text-sm font-medium">Urgentes</p><p className="text-3xl font-bold text-red-600 dark:text-red-500">{stats.urgent}</p></div>
+                <div className="bg-red-100 dark:bg-red-900/30 p-3 rounded-full text-red-600 dark:text-red-500 group-hover:scale-110 transition-transform"><Clock size={24} /></div>
               </div>
               <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 flex items-center justify-between group hover:scale-[1.02] hover:shadow-lg transition-all duration-300">
-                <div>
-                  <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">Resueltos</p>
-                  <p className="text-3xl font-bold text-green-600 dark:text-green-500">{stats.resolved}</p>
-                </div>
-                <div className="bg-green-100 dark:bg-green-900/30 p-3 rounded-full text-green-600 dark:text-green-500 group-hover:rotate-12 transition-transform">
-                  <CheckCircle2 size={24} />
-                </div>
+                <div><p className="text-gray-500 dark:text-gray-400 text-sm font-medium">Resueltos</p><p className="text-3xl font-bold text-green-600 dark:text-green-500">{stats.resolved}</p></div>
+                <div className="bg-green-100 dark:bg-green-900/30 p-3 rounded-full text-green-600 dark:text-green-500 group-hover:rotate-12 transition-transform"><CheckCircle2 size={24} /></div>
               </div>
             </div>
 
-            {/* Split View: 3/4 Open, 1/4 Resolved (Compact) */}
             <div className="flex flex-col lg:flex-row gap-6 items-start">
-               
-               {/* LEFT: PENDING TICKETS (Main Focus) */}
                <div className="flex-1 w-full space-y-4">
-                  <h3 className="text-lg font-bold text-gray-800 dark:text-white flex items-center gap-2 mb-2">
-                    <Inbox className="text-amber-600" size={20} /> Pendientes de Atención
-                  </h3>
-                  
+                  <h3 className="text-lg font-bold text-gray-800 dark:text-white flex items-center gap-2 mb-2"><Inbox className="text-amber-600" size={20} /> Pendientes de Atención</h3>
                   {openTickets.length === 0 ? (
                     <div className="bg-white dark:bg-gray-800 rounded-2xl p-12 text-center border border-gray-200 dark:border-gray-700 border-dashed">
-                      <div className="bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <CheckCircle2 size={32} />
-                      </div>
-                      <h3 className="text-xl font-bold text-gray-800 dark:text-white">¡Todo listo!</h3>
-                      <p className="text-gray-500 dark:text-gray-400">No hay tickets pendientes por resolver.</p>
+                      <div className="bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"><CheckCircle2 size={32} /></div>
+                      <h3 className="text-xl font-bold text-gray-800 dark:text-white">¡Todo listo!</h3><p className="text-gray-500 dark:text-gray-400">No hay tickets pendientes por resolver.</p>
                     </div>
                   ) : (
                     openTickets.map(ticket => (
@@ -540,6 +461,7 @@ const App: React.FC = () => {
                         key={ticket.id} 
                         ticket={ticket} 
                         isAdmin={isAdmin} 
+                        isAiEnabled={isAiEnabled}
                         isHighlighted={highlightedTicketId === ticket.id}
                         onResolve={handleResolveTicket}
                         onReopen={handleReopenTicket}
@@ -548,66 +470,27 @@ const App: React.FC = () => {
                     ))
                   )}
                </div>
-
-               {/* RIGHT: RESOLVED LIST (Compact Sidebar) */}
                <div className="w-full lg:w-80 shrink-0">
                   <div className="bg-gray-100 dark:bg-gray-800/50 rounded-2xl p-4 border border-gray-200 dark:border-gray-700/50 sticky top-20">
-                    <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
-                      <Archive size={16} /> Resueltos Recientes
-                    </h3>
-                    
+                    <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2"><Archive size={16} /> Resueltos Recientes</h3>
                     <div className="space-y-2 max-h-[calc(100vh-300px)] overflow-y-auto custom-scrollbar pr-1">
-                      {resolvedTickets.length === 0 && (
-                        <p className="text-xs text-gray-400 italic">No hay tickets resueltos.</p>
-                      )}
-                      
+                      {resolvedTickets.length === 0 && <p className="text-xs text-gray-400 italic">No hay tickets resueltos.</p>}
                       {resolvedTickets.map(ticket => (
-                        <div 
-                          key={ticket.id}
-                          className="group bg-white dark:bg-gray-800 p-3 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-indigo-300 dark:hover:border-indigo-700 transition-all cursor-pointer relative"
-                          onClick={() => setSelectedTicket(ticket)}
-                          title="Click para ver detalles"
-                        >
-                          <div className="flex justify-between items-start mb-1">
-                             <span className="text-[10px] font-bold text-gray-400">#{ticket.number}</span>
-                             <span className="text-[10px] text-gray-400 flex items-center gap-1">
-                               {ticket.resolvedAt && new Date(ticket.resolvedAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                             </span>
-                          </div>
-                          
+                        <div key={ticket.id} className="group bg-white dark:bg-gray-800 p-3 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-indigo-300 dark:hover:border-indigo-700 transition-all cursor-pointer relative" onClick={() => setSelectedTicket(ticket)} title="Click para ver detalles">
+                          <div className="flex justify-between items-start mb-1"><span className="text-[10px] font-bold text-gray-400">#{ticket.number}</span><span className="text-[10px] text-gray-400 flex items-center gap-1">{ticket.resolvedAt && new Date(ticket.resolvedAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span></div>
                           <div className="flex items-center gap-2 mb-1">
-                             <div className="w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0 text-[10px] font-bold">
-                               {ticket.creatorName.charAt(0)}
-                             </div>
-                             <p className="text-xs font-semibold text-gray-600 dark:text-gray-300 line-through decoration-gray-400 opacity-80 truncate">
-                               {ticket.title}
-                             </p>
+                             <div className="w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0 text-[10px] font-bold">{ticket.creatorName.charAt(0)}</div>
+                             <p className="text-xs font-semibold text-gray-600 dark:text-gray-300 line-through decoration-gray-400 opacity-80 truncate">{ticket.title}</p>
                           </div>
-                          
-                          {/* Snippet of description */}
-                          <p className="text-[10px] text-gray-400 dark:text-gray-500 line-clamp-2 leading-relaxed">
-                            {ticket.description}
-                          </p>
-                          
-                          {/* Hover Action: Reopen */}
+                          <p className="text-[10px] text-gray-400 dark:text-gray-500 line-clamp-2 leading-relaxed">{ticket.description}</p>
                           {isAdmin && (
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleReopenTicket(ticket.id);
-                                }}
-                                className="absolute right-2 bottom-2 p-1.5 bg-amber-100 text-amber-600 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-amber-200"
-                                title="Reabrir ticket rápidamente"
-                            >
-                                <RotateCcw size={14} />
-                            </button>
+                            <button onClick={(e) => { e.stopPropagation(); handleReopenTicket(ticket.id); }} className="absolute right-2 bottom-2 p-1.5 bg-amber-100 text-amber-600 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-amber-200" title="Reabrir ticket rápidamente"><RotateCcw size={14} /></button>
                           )}
                         </div>
                       ))}
                     </div>
                   </div>
                </div>
-
             </div>
           </div>
         );
@@ -624,42 +507,30 @@ const App: React.FC = () => {
       onToggleTheme={() => setIsDarkMode(!isDarkMode)}
     >
       {renderContent()}
-
-      {/* --- SELECTED TICKET MODAL --- */}
       {selectedTicket && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
            <div className="bg-white dark:bg-gray-800 w-full max-w-3xl max-h-[90vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-300">
               <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700/30">
-                 <h3 className="font-bold text-gray-700 dark:text-white flex items-center gap-2">
-                   Vista Detallada <span className="text-xs px-2 py-0.5 bg-gray-200 dark:bg-gray-600 rounded text-gray-600 dark:text-gray-300">#{selectedTicket.number}</span>
-                 </h3>
-                 <button 
-                   onClick={() => setSelectedTicket(null)}
-                   className="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-400 transition-colors"
-                   title="Cerrar ventana"
-                 >
-                   <X size={20} />
-                 </button>
+                 <h3 className="font-bold text-gray-700 dark:text-white flex items-center gap-2">Vista Detallada <span className="text-xs px-2 py-0.5 bg-gray-200 dark:bg-gray-600 rounded text-gray-600 dark:text-gray-300">#{selectedTicket.number}</span></h3>
+                 <button onClick={() => setSelectedTicket(null)} className="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-400 transition-colors" title="Cerrar ventana"><X size={20} /></button>
               </div>
               <div className="p-6 overflow-y-auto custom-scrollbar">
                  <TicketCard 
                     ticket={selectedTicket} 
                     isAdmin={isAdmin} 
+                    isAiEnabled={isAiEnabled}
                     onResolve={handleResolveTicket}
                     onReopen={handleReopenTicket}
                     onAddComment={handleAddComment}
-                    defaultExpanded={true} // Auto expand in modal
+                    defaultExpanded={true}
                  />
               </div>
            </div>
         </div>
       )}
-
-      {/* Notification Toast */}
       {notification && (
         <div className="fixed bottom-6 right-6 bg-gray-900 dark:bg-white text-white dark:text-gray-900 px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-bottom-5 duration-300 z-50">
-          <CheckCircle2 size={20} className="text-green-400 dark:text-green-600" />
-          <span className="font-medium">{notification}</span>
+          <CheckCircle2 size={20} className="text-green-400 dark:text-green-600" /><span className="font-medium">{notification}</span>
         </div>
       )}
     </Layout>

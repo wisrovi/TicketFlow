@@ -1,12 +1,14 @@
 import React from 'react';
-import { Moon, Sun, Bell, Volume2, Shield, Database, Trash2, RefreshCcw } from 'lucide-react';
+import { Moon, Sun, Bell, Shield, Trash2, Sparkles, ToggleLeft, ToggleRight } from 'lucide-react';
 
 interface SettingsProps {
   isDarkMode: boolean;
   onToggleTheme: () => void;
+  isAiEnabled: boolean;
+  onToggleAi: () => void;
 }
 
-export const Settings: React.FC<SettingsProps> = ({ isDarkMode, onToggleTheme }) => {
+export const Settings: React.FC<SettingsProps> = ({ isDarkMode, onToggleTheme, isAiEnabled, onToggleAi }) => {
   return (
     <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       
@@ -14,6 +16,28 @@ export const Settings: React.FC<SettingsProps> = ({ isDarkMode, onToggleTheme })
       <div>
         <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Configuración</h2>
         <p className="text-gray-500 dark:text-gray-400">Personaliza tu experiencia en wTicketFlow</p>
+      </div>
+
+      {/* IA Settings */}
+      <div className="bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 rounded-2xl p-6 border border-purple-200 dark:border-purple-800 shadow-sm">
+        <h3 className="font-bold text-purple-900 dark:text-purple-200 mb-4 flex items-center gap-2">
+          <Sparkles size={20} className="text-purple-600 dark:text-purple-400" /> Inteligencia Artificial
+        </h3>
+        <div className="flex items-center justify-between">
+          <div className="pr-4">
+            <p className="font-medium text-gray-800 dark:text-gray-200">Funcionalidades Smart con Gemini</p>
+            <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 leading-relaxed">
+              Activa funciones como auto-categorización de tickets, mejora de redacción y sugerencia de respuestas inteligentes. 
+              <br/><span className="italic opacity-70">(Requiere API Key configurada internamente)</span>
+            </p>
+          </div>
+          <button 
+            onClick={onToggleAi}
+            className={`shrink-0 text-4xl transition-colors ${isAiEnabled ? 'text-purple-600 dark:text-purple-400' : 'text-gray-300 dark:text-gray-600'}`}
+          >
+            {isAiEnabled ? <ToggleRight size={48} /> : <ToggleLeft size={48} />}
+          </button>
+        </div>
       </div>
 
       {/* Apariencia */}
