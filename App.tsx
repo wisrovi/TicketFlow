@@ -352,6 +352,11 @@ const App: React.FC = () => {
 
   // --- Rendering ---
 
+  // Special Case: Full Screen Presentation (Bypasses Layout)
+  if (activeTab === 'presentation') {
+      return <Presentation onExit={() => setActiveTab('dashboard')} />;
+  }
+
   const renderContent = () => {
     switch (activeTab) {
       case 'create':
@@ -374,9 +379,6 @@ const App: React.FC = () => {
         
       case 'data':
         return <DataManagement data={{ tickets, users, subjects }} onImport={handleImportData} />;
-      
-      case 'presentation':
-        return <Presentation />;
       
       case 'settings':
         return <Settings isDarkMode={isDarkMode} onToggleTheme={() => setIsDarkMode(!isDarkMode)} />;

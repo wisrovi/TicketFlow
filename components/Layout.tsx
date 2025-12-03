@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LayoutDashboard, PlusCircle, History, Users, Database, UserCircle, Tag, Sun, Moon, Lock, UserCheck, Menu, HelpCircle, Heart, ChevronLeft, ChevronRight, Settings as SettingsIcon, Sparkles } from 'lucide-react';
+import { LayoutDashboard, PlusCircle, History, Users, Database, UserCircle, Tag, Sun, Moon, Lock, UserCheck, Menu, HelpCircle, Heart, ChevronLeft, ChevronRight, Settings as SettingsIcon, Sparkles, MonitorPlay } from 'lucide-react';
 import { AboutModal } from './AboutModal';
 import { HelpModal } from './HelpModal';
 
@@ -27,10 +27,9 @@ export const Layout: React.FC<LayoutProps> = ({
   const [isAboutOpen, setAboutOpen] = useState(false);
   const [isHelpOpen, setHelpOpen] = useState(false);
 
-  // Define nav items with allowed roles ('all', 'admin', 'user')
+  // Define nav items (Presentation removed from main list to move to bottom)
   const allNavItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['all'] },
-    { id: 'presentation', label: 'Presentación', icon: Sparkles, roles: ['all'] },
     { id: 'create', label: 'Nuevo Ticket', icon: PlusCircle, roles: ['all'] },
     { id: 'history', label: 'Historial', icon: History, roles: ['admin'] },
     { id: 'users', label: 'Usuarios', icon: Users, roles: ['admin'] },
@@ -49,70 +48,101 @@ export const Layout: React.FC<LayoutProps> = ({
     return false;
   });
 
+  const toggleSidebar = () => {
+    // On mobile toggle open/close, on desktop toggle collapse/expand
+    if (window.innerWidth < 768) {
+      setSidebarOpen(!isSidebarOpen);
+    } else {
+      setIsCollapsed(!isCollapsed);
+    }
+  };
+
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300 font-sans text-gray-900 dark:text-gray-100 overflow-hidden">
       
       {/* --- SIDEBAR --- */}
       <aside 
-        className={`fixed inset-y-0 left-0 z-30 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 shadow-xl md:shadow-none transition-all duration-300 ease-in-out 
+        className={`fixed inset-y-0 left-0 z-30 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 shadow-xl md:shadow-none transition-all duration-300 ease-in-out flex flex-col
         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} 
         md:translate-x-0 md:relative 
         ${isCollapsed ? 'w-20' : 'w-64'}
         `}
       >
-        <div className="h-full flex flex-col">
-          {/* Logo Area */}
-          <div className={`h-16 flex items-center ${isCollapsed ? 'justify-center' : 'px-6 gap-3'} border-b border-gray-100 dark:border-gray-700 transition-all`}>
-            <div className="w-8 h-8 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold shadow-md shadow-indigo-200 dark:shadow-none shrink-0">
-              wT
-            </div>
-            {!isCollapsed && (
-              <span className="text-xl font-bold text-gray-800 dark:text-white tracking-tight animate-in fade-in duration-200">wTicketFlow</span>
-            )}
+        {/* Logo Area (Clickable to Toggle) */}
+        <div 
+          onClick={toggleSidebar}
+          className={`h-16 flex items-center ${isCollapsed ? 'justify-center' : 'px-6 gap-3'} border-b border-gray-100 dark:border-gray-700 transition-all cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 group`}
+          title="Click para ocultar/mostrar menú lateral"
+        >
+          <div className="w-8 h-8 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold shadow-md shadow-indigo-200 dark:shadow-none shrink-0 group-hover:scale-110 transition-transform">
+            wT
           </div>
+          {!isCollapsed && (
+            <span className="text-xl font-bold text-gray-800 dark:text-white tracking-tight animate-in fade-in duration-200 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">wTicketFlow</span>
+          )}
+        </div>
 
-          {/* Navigation Items */}
-          <nav className="flex-1 py-6 px-3 space-y-1 overflow-y-auto custom-scrollbar">
-            {!isCollapsed && (
-              <div className="px-3 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider transition-opacity duration-200">
-                Menu Principal
-              </div>
-            )}
+        {/* Navigation Items */}
+        <nav className="flex-1 py-6 px-3 space-y-1 overflow-y-auto custom-scrollbar">
+          {!isCollapsed && (
+            <div className="px-3 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider transition-opacity duration-200">
+              Menu Principal
+            </div>
+          )}
+          
+          {navItems.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => {
+                onTabChange(item.id as any);
+                setSidebarOpen(false);
+              }}
+              title={isCollapsed ? item.label : ''}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group relative ${
+                activeTab === item.id 
+                  ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 font-semibold' 
+                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700/50 hover:text-gray-900 dark:hover:text-gray-200'
+              } ${isCollapsed ? 'justify-center' : ''}`}
+            >
+              <item.icon size={20} className={`shrink-0 ${activeTab === item.id ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`} />
+              
+              {!isCollapsed && (
+                <span className="truncate">{item.label}</span>
+              )}
+              
+              {/* Active Indicator Strip */}
+              {activeTab === item.id && (
+                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-indigo-600 rounded-r-full"></div>
+              )}
+            </button>
+          ))}
+        </nav>
+
+        {/* Sidebar Footer */}
+        <div className="p-3 border-t border-gray-100 dark:border-gray-700 flex flex-col gap-2">
             
-            {navItems.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => {
-                  onTabChange(item.id as any);
-                  setSidebarOpen(false);
-                }}
-                title={isCollapsed ? item.label : ''}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group relative ${
-                  activeTab === item.id 
-                    ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 font-semibold' 
-                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700/50 hover:text-gray-900 dark:hover:text-gray-200'
-                } ${isCollapsed ? 'justify-center' : ''}`}
-              >
-                <item.icon size={20} className={`shrink-0 ${activeTab === item.id ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`} />
-                
-                {!isCollapsed && (
-                  <span className="truncate">{item.label}</span>
-                )}
-                
-                {/* Active Indicator Strip */}
-                {activeTab === item.id && (
-                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-indigo-600 rounded-r-full"></div>
-                )}
-              </button>
-            ))}
-          </nav>
+            {/* Presentation Mode Button (Prominent) */}
+            <button
+              onClick={() => {
+                onTabChange('presentation');
+                setSidebarOpen(false);
+              }}
+              title={isCollapsed ? "Modo Presentación" : ""}
+              className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 bg-gradient-to-r from-gray-800 to-gray-900 text-white hover:shadow-lg hover:shadow-indigo-500/20 group ${isCollapsed ? 'justify-center' : ''}`}
+            >
+               <MonitorPlay size={20} className="shrink-0 text-indigo-400 group-hover:text-white transition-colors" />
+               {!isCollapsed && (
+                  <div className="flex flex-col items-start">
+                    <span className="font-bold text-sm">Presentación</span>
+                    <span className="text-[10px] text-gray-400">Ver Demo Pantalla Completa</span>
+                  </div>
+               )}
+            </button>
 
-          {/* Sidebar Footer (Collapse Toggle & Version) */}
-          <div className="p-4 border-t border-gray-100 dark:border-gray-700 flex flex-col gap-2 items-center md:items-stretch">
              {/* Collapse Button (Desktop Only) */}
              <button
                onClick={() => setIsCollapsed(!isCollapsed)}
-               className="hidden md:flex items-center justify-center p-2 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+               className="hidden md:flex items-center justify-center p-2 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors mt-2"
                title={isCollapsed ? "Expandir menú" : "Contraer menú"}
              >
                {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
@@ -121,13 +151,12 @@ export const Layout: React.FC<LayoutProps> = ({
              {!isCollapsed && (
                <button 
                  onClick={() => setAboutOpen(true)}
-                 className="text-xs text-gray-400 hover:text-indigo-500 transition-colors flex items-center gap-1.5 px-2 justify-center md:justify-start"
+                 className="text-xs text-gray-400 hover:text-indigo-500 transition-colors flex items-center gap-1.5 px-2 justify-center md:justify-start mt-1"
                >
                  <Heart size={12} className="shrink-0" />
                  <span className="truncate">Versión 1.2.0</span>
                </button>
              )}
-          </div>
         </div>
       </aside>
 
@@ -146,7 +175,7 @@ export const Layout: React.FC<LayoutProps> = ({
               <Menu size={24} />
             </button>
             <h1 className="text-lg font-semibold text-gray-800 dark:text-white hidden md:block capitalize">
-              {allNavItems.find(n => n.id === activeTab)?.label}
+              {allNavItems.find(n => n.id === activeTab)?.label || (activeTab === 'presentation' ? 'Presentación' : 'Dashboard')}
             </h1>
           </div>
 
