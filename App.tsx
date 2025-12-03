@@ -379,7 +379,7 @@ const App: React.FC = () => {
                   </h2>
                   <p className="text-sm text-gray-500 dark:text-gray-400">Total: {filteredTickets.length} tickets</p>
                </div>
-               <button onClick={handleExportCSV} className="flex items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors text-sm font-medium">
+               <button onClick={handleExportCSV} title="Descargar listado en formato Excel/CSV" className="flex items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors text-sm font-medium">
                  <Download size={16} /> Exportar CSV
                </button>
              </div>
@@ -486,7 +486,7 @@ const App: React.FC = () => {
                     <div className="space-y-2 max-h-[calc(100vh-300px)] overflow-y-auto custom-scrollbar pr-1">
                       {resolvedTickets.length === 0 && <p className="text-xs text-gray-400 italic">No hay tickets resueltos.</p>}
                       {resolvedTickets.map(ticket => (
-                        <div key={ticket.id} className="group bg-white dark:bg-gray-800 p-3 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-indigo-300 dark:hover:border-indigo-700 transition-all cursor-pointer relative" onClick={() => setSelectedTicket(ticket)} title="Click para ver detalles">
+                        <div key={ticket.id} className="group bg-white dark:bg-gray-800 p-3 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-indigo-300 dark:hover:border-indigo-700 transition-all cursor-pointer relative" onClick={() => setSelectedTicket(ticket)} title="Click para ver detalles del ticket">
                           <div className="flex justify-between items-start mb-1"><span className="text-[10px] font-bold text-gray-400">#{ticket.number}</span><span className="text-[10px] text-gray-400 flex items-center gap-1">{ticket.resolvedAt && new Date(ticket.resolvedAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span></div>
                           <div className="flex items-center gap-2 mb-1">
                              <div className="w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0 text-[10px] font-bold">{ticket.creatorName.charAt(0)}</div>

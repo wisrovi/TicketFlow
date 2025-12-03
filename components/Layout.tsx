@@ -72,7 +72,7 @@ export const Layout: React.FC<LayoutProps> = ({
         <div 
           onClick={toggleSidebar}
           className={`h-16 flex items-center ${isCollapsed ? 'justify-center' : 'px-6 gap-3'} border-b border-gray-100 dark:border-gray-700 transition-all cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 group`}
-          title="Click para ocultar/mostrar menú lateral"
+          title={isCollapsed ? "Expandir menú lateral" : "Contraer menú lateral"}
         >
           <div className="w-8 h-8 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold shadow-md shadow-indigo-200 dark:shadow-none shrink-0 group-hover:scale-110 transition-transform">
             wT
@@ -127,7 +127,7 @@ export const Layout: React.FC<LayoutProps> = ({
                 onTabChange('presentation');
                 setSidebarOpen(false);
               }}
-              title={isCollapsed ? "Modo Presentación" : ""}
+              title={isCollapsed ? "Modo Presentación" : "Iniciar modo presentación a pantalla completa"}
               className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 bg-gradient-to-r from-gray-800 to-gray-900 text-white hover:shadow-lg hover:shadow-indigo-500/20 group ${isCollapsed ? 'justify-center' : ''}`}
             >
                <MonitorPlay size={20} className="shrink-0 text-indigo-400 group-hover:text-white transition-colors" />
@@ -151,6 +151,7 @@ export const Layout: React.FC<LayoutProps> = ({
              {!isCollapsed && (
                <button 
                  onClick={() => setAboutOpen(true)}
+                 title="Ver información de la versión"
                  className="text-xs text-gray-400 hover:text-indigo-500 transition-colors flex items-center gap-1.5 px-2 justify-center md:justify-start mt-1"
                >
                  <Heart size={12} className="shrink-0" />
@@ -171,6 +172,7 @@ export const Layout: React.FC<LayoutProps> = ({
             <button 
               onClick={() => setSidebarOpen(!isSidebarOpen)}
               className="p-2 -ml-2 text-gray-600 dark:text-gray-300 md:hidden hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+              title="Mostrar menú de navegación"
             >
               <Menu size={24} />
             </button>
@@ -247,10 +249,10 @@ export const Layout: React.FC<LayoutProps> = ({
                </div>
                
                <div className="flex items-center gap-6">
-                 <button onClick={() => setAboutOpen(true)} className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                 <button onClick={() => setAboutOpen(true)} className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors" title="Información del desarrollador">
                    Acerca del autor
                  </button>
-                 <button onClick={() => setHelpOpen(true)} className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                 <button onClick={() => setHelpOpen(true)} className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors" title="Ver guía de uso">
                    Ayuda
                  </button>
                </div>
@@ -258,7 +260,7 @@ export const Layout: React.FC<LayoutProps> = ({
                <div className="flex items-center gap-1 text-xs opacity-70">
                  <span>Desarrollado con</span>
                  <Heart size={10} className="text-red-500 fill-current" />
-                 <span>por <a href="https://es.linkedin.com/in/wisrovi-rodriguez" target="_blank" rel="noreferrer" className="hover:underline">Wisrovi</a></span>
+                 <span>por <a href="https://es.linkedin.com/in/wisrovi-rodriguez" target="_blank" rel="noreferrer" className="hover:underline" title="LinkedIn de Wisrovi">Wisrovi</a></span>
                </div>
             </div>
           </footer>

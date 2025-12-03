@@ -68,7 +68,7 @@ export const SubjectManagement: React.FC<SubjectManagementProps> = ({ subjects, 
                 <button
                   onClick={() => onDeleteSubject(subject.id)}
                   className="text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400 p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                  title="Eliminar asunto"
+                  title={`Eliminar asunto "${subject.title}"`}
                 >
                   <Trash2 size={18} />
                 </button>
