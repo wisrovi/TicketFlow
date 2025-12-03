@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { generateId } from './utils/helpers';
 import { Layout } from './components/Layout';
@@ -8,6 +7,9 @@ import { UserManagement } from './components/UserManagement';
 import { SubjectManagement } from './components/SubjectManagement';
 import { DataManagement } from './components/DataManagement';
 import { MyTickets } from './components/MyTickets';
+import { Presentation } from './components/Presentation';
+import { Settings } from './components/Settings';
+import { AboutView } from './components/AboutView';
 import { Ticket, TicketStatus, TicketTopic, TicketPriority, FilterState, User, Subject, AppData, Comment } from './types';
 import { Filter, Search, Inbox, CheckCircle2, Clock, CalendarDays, Flame, Archive, RotateCcw, X, User as UserIcon, Download } from 'lucide-react';
 
@@ -15,18 +17,38 @@ const App: React.FC = () => {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'create' | 'history' | 'users' | 'subjects' | 'data' | 'mytickets'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'create' | 'history' | 'users' | 'subjects' | 'data' | 'mytickets' | 'presentation' | 'settings' | 'about'>('dashboard');
   const [isAdmin, setIsAdmin] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
   
-  // Theme State
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  // Theme State - Initialize with Dark Mode by default
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    const savedTheme = localStorage.getItem('wticketflow_theme');
+    // If saved, use preference. If not saved, default to TRUE (Dark).
+    return savedTheme ? savedTheme === 'dark' : true;
+  });
   
   // Highlight New Ticket State
   const [highlightedTicketId, setHighlightedTicketId] = useState<string | null>(null);
 
   // Selected Ticket for Modal View
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
+
+  // User Session State (Global)
+  const [currentUserId, setCurrentUserId] = useState<string>('');
+
+  // Persist selected user in session
+  useEffect(() => {
+    const savedUser = sessionStorage.getItem('ticketflow_my_user');
+    if (savedUser) {
+        setCurrentUserId(savedUser);
+    }
+  }, []);
+
+  const handleUserChange = (id: string) => {
+    setCurrentUserId(id);
+    sessionStorage.setItem('ticketflow_my_user', id);
+  };
 
   // Filters State
   const [filters, setFilters] = useState<FilterState>({
@@ -45,13 +67,13 @@ const App: React.FC = () => {
         localStorage.setItem('wticketflow_tickets', localStorage.getItem('ticketflow_tickets') || '[]');
         localStorage.setItem('wticketflow_users', localStorage.getItem('ticketflow_users') || '[]');
         localStorage.setItem('wticketflow_subjects', localStorage.getItem('ticketflow_subjects') || '[]');
-        localStorage.setItem('wticketflow_theme', localStorage.getItem('ticketflow_theme') || 'light');
+        // Don't migrate theme here to allow default dark mode override if user hasn't explicitly set wticketflow_theme
     }
 
     const savedTickets = localStorage.getItem('wticketflow_tickets');
     const savedUsers = localStorage.getItem('wticketflow_users');
     const savedSubjects = localStorage.getItem('wticketflow_subjects');
-    const savedTheme = localStorage.getItem('wticketflow_theme');
+    // Note: Theme is handled in useState initialization
     
     if (savedTickets) {
       try { 
@@ -70,7 +92,7 @@ const App: React.FC = () => {
 
         if (missingNumbers || missingPriority || missingComments) {
             const sorted = [...parsedTickets].sort((a: any, b: any) => a.createdAt - b.createdAt);
-            processedTickets = sorted.map((t, index) => ({
+            processedTickets = sorted.map((t: Ticket, index: number) => ({
                 ...t,
                 number: t.number !== undefined ? t.number : index + 1,
                 priority: t.priority || TicketPriority.NORMAL,
@@ -92,9 +114,6 @@ const App: React.FC = () => {
     }
     if (savedSubjects) {
       try { setSubjects(JSON.parse(savedSubjects)); } catch (e) { console.error(e); }
-    }
-    if (savedTheme) {
-      setIsDarkMode(savedTheme === 'dark');
     }
   }, []);
 
@@ -244,7 +263,7 @@ const App: React.FC = () => {
     
     if (needsFix) {
        const sorted = [...processedTickets].sort((a, b) => a.createdAt - b.createdAt);
-       processedTickets = sorted.map((t, index) => ({
+       processedTickets = sorted.map((t: Ticket, index: number) => ({
            ...t,
            number: t.number !== undefined ? t.number : index + 1,
            priority: t.priority || TicketPriority.NORMAL,
@@ -277,66 +296,321 @@ const App: React.FC = () => {
         t.topic,
         new Date(t.createdAt).toLocaleString(),
         t.resolvedAt ? new Date(t.resolvedAt).toLocaleString() : "",
-        t.resolutionNote ? `"${t.resolutionNote.replace(/"/g, '""')}"` : "",
+        `"${(t.resolutionNote || "").replace(/"/g, '""')}"`,
         `"${t.description.replace(/"/g, '""')}"`,
-        t.comments ? t.comments.length : 0
+        t.comments?.length || 0
     ]);
 
-    const csvContent = "data:text/csv;charset=utf-8," 
-        + headers.join(",") + "\n" 
-        + rows.map(e => e.join(",")).join("\n");
+    const csvContent = [
+        headers.join(","), 
+        ...rows.map(row => row.join(","))
+    ].join("\n");
 
-    const encodedUri = encodeURI(csvContent);
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `wTicketFlow_Report_${new Date().toISOString().slice(0,10)}.csv`);
-    document.body.appendChild(link);
+    link.href = url;
+    link.download = `tickets_export_${new Date().toISOString().slice(0, 10)}.csv`;
     link.click();
-    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
-  // --- Filter Logic ---
+  // --- Filtering Logic for Dashboard/History ---
 
   const filteredTickets = useMemo(() => {
-    return tickets.filter(t => {
-      let matchStatus = true;
-      if (activeTab === 'history' || filters.status !== 'ALL') {
-         matchStatus = filters.status === 'ALL' || t.status === filters.status;
-      }
-
-      const matchTopic = filters.topic === 'ALL' || t.topic === filters.topic;
-      const matchPriority = filters.priority === 'ALL' || t.priority === filters.priority;
-      const matchSearch = t.title.toLowerCase().includes(filters.search.toLowerCase()) || 
-                          t.description.toLowerCase().includes(filters.search.toLowerCase()) ||
-                          t.creatorName.toLowerCase().includes(filters.search.toLowerCase());
+    return tickets.filter(ticket => {
+      const matchesStatus = filters.status === 'ALL' || ticket.status === filters.status;
+      const matchesTopic = filters.topic === 'ALL' || ticket.topic === filters.topic;
+      const matchesPriority = filters.priority === 'ALL' || ticket.priority === filters.priority;
+      const matchesSearch = ticket.title.toLowerCase().includes(filters.search.toLowerCase()) || 
+                            ticket.description.toLowerCase().includes(filters.search.toLowerCase()) ||
+                            ticket.creatorName.toLowerCase().includes(filters.search.toLowerCase());
       
-      let matchDate = true;
+      let matchesDate = true;
       if (filters.dateStart) {
-        matchDate = matchDate && t.createdAt >= new Date(filters.dateStart).getTime();
+        matchesDate = matchesDate && ticket.createdAt >= new Date(filters.dateStart).getTime();
       }
       if (filters.dateEnd) {
+        // End of the day
         const endDate = new Date(filters.dateEnd);
         endDate.setHours(23, 59, 59, 999);
-        matchDate = matchDate && t.createdAt <= endDate.getTime();
+        matchesDate = matchesDate && ticket.createdAt <= endDate.getTime();
       }
 
-      return matchStatus && matchTopic && matchPriority && matchSearch && matchDate;
+      return matchesStatus && matchesTopic && matchesPriority && matchesSearch && matchesDate;
     });
-  }, [tickets, filters, activeTab]);
+  }, [tickets, filters]);
 
-  // Derived lists for Dashboard
-  const openTickets = useMemo(() => filteredTickets.filter(t => t.status === TicketStatus.OPEN), [filteredTickets]);
-  const resolvedTickets = useMemo(() => filteredTickets.filter(t => t.status === TicketStatus.RESOLVED), [filteredTickets]);
-
-  // --- Stats ---
-  
+  // Dashboard Stats
   const stats = useMemo(() => {
     return {
       open: tickets.filter(t => t.status === TicketStatus.OPEN).length,
       resolved: tickets.filter(t => t.status === TicketStatus.RESOLVED).length,
-      urgent: tickets.filter(t => t.priority === TicketPriority.URGENT && t.status === TicketStatus.OPEN).length
+      urgent: tickets.filter(t => t.priority === TicketPriority.URGENT && t.status === TicketStatus.OPEN).length,
     };
   }, [tickets]);
+
+  // --- Rendering ---
+
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'create':
+        return (
+          <TicketForm 
+            users={users} 
+            subjects={subjects}
+            onSubmit={handleCreateTicket} 
+            onCancel={() => setActiveTab('dashboard')}
+            onNavigateToUsers={() => setActiveTab('users')}
+            onNavigateToSubjects={() => setActiveTab('subjects')}
+          />
+        );
+      
+      case 'users':
+        return <UserManagement users={users} onAddUser={handleAddUser} onDeleteUser={handleDeleteUser} />;
+      
+      case 'subjects':
+        return <SubjectManagement subjects={subjects} onAddSubject={handleAddSubject} onDeleteSubject={handleDeleteSubject} />;
+        
+      case 'data':
+        return <DataManagement data={{ tickets, users, subjects }} onImport={handleImportData} />;
+      
+      case 'presentation':
+        return <Presentation />;
+      
+      case 'settings':
+        return <Settings isDarkMode={isDarkMode} onToggleTheme={() => setIsDarkMode(!isDarkMode)} />;
+      
+      case 'about':
+        return <AboutView />;
+
+      case 'history':
+        return (
+          <div className="space-y-6 animate-in fade-in duration-500">
+             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
+               <div>
+                  <h2 className="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
+                    <Clock className="text-indigo-600 dark:text-indigo-400" /> Historial Completo
+                  </h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Total: {filteredTickets.length} tickets</p>
+               </div>
+               <button 
+                 onClick={handleExportCSV}
+                 className="flex items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors text-sm font-medium"
+               >
+                 <Download size={16} /> Exportar CSV
+               </button>
+             </div>
+
+             {/* Filters Bar */}
+             <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-3 text-gray-400" size={18} />
+                  <input 
+                    type="text" 
+                    placeholder="Buscar..." 
+                    className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-800 dark:text-white"
+                    value={filters.search}
+                    onChange={(e) => setFilters({...filters, search: e.target.value})}
+                  />
+                </div>
+                <select 
+                  className="px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-800 dark:text-white"
+                  value={filters.topic}
+                  onChange={(e) => setFilters({...filters, topic: e.target.value as any})}
+                >
+                  <option value="ALL">Todos los temas</option>
+                  {Object.values(TicketTopic).map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+                <select 
+                  className="px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-800 dark:text-white"
+                  value={filters.priority}
+                  onChange={(e) => setFilters({...filters, priority: e.target.value as any})}
+                >
+                  <option value="ALL">Todas las prioridades</option>
+                  {Object.values(TicketPriority).map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+                <select 
+                  className="px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-800 dark:text-white"
+                  value={filters.status}
+                  onChange={(e) => setFilters({...filters, status: e.target.value as any})}
+                >
+                  <option value="ALL">Todos los estados</option>
+                  <option value={TicketStatus.OPEN}>Abiertos</option>
+                  <option value={TicketStatus.RESOLVED}>Resueltos</option>
+                </select>
+             </div>
+
+             {/* List */}
+             <div className="space-y-4">
+               {filteredTickets.map(ticket => (
+                 <TicketCard 
+                   key={ticket.id} 
+                   ticket={ticket} 
+                   isAdmin={isAdmin} 
+                   onResolve={handleResolveTicket}
+                   onReopen={handleReopenTicket}
+                   onAddComment={handleAddComment}
+                   defaultExpanded={false}
+                 />
+               ))}
+               {filteredTickets.length === 0 && (
+                 <div className="text-center py-12 text-gray-400">No se encontraron tickets con los filtros actuales.</div>
+               )}
+             </div>
+          </div>
+        );
+
+      case 'dashboard':
+      default:
+        // CONDITIONAL DASHBOARD:
+        // If !isAdmin -> Show User Dashboard (MyTickets)
+        if (!isAdmin) {
+            return (
+                <MyTickets 
+                    tickets={tickets} 
+                    users={users} 
+                    isAdmin={isAdmin} 
+                    onResolve={handleResolveTicket}
+                    onReopen={handleReopenTicket}
+                    onAddComment={handleAddComment}
+                />
+            );
+        }
+
+        // If isAdmin -> Show Global Split Dashboard
+        const openTickets = tickets.filter(t => t.status === TicketStatus.OPEN).sort((a, b) => b.createdAt - a.createdAt);
+        const resolvedTickets = tickets.filter(t => t.status === TicketStatus.RESOLVED).sort((a, b) => (b.resolvedAt || 0) - (a.resolvedAt || 0));
+
+        return (
+          <div className="space-y-6 animate-in fade-in duration-500">
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 flex items-center justify-between group hover:scale-[1.02] hover:shadow-lg transition-all duration-300">
+                <div>
+                  <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">Pendientes</p>
+                  <p className="text-3xl font-bold text-amber-600 dark:text-amber-500">{stats.open}</p>
+                </div>
+                <div className="bg-amber-100 dark:bg-amber-900/30 p-3 rounded-full text-amber-600 dark:text-amber-500 group-hover:rotate-12 transition-transform">
+                  <Flame size={24} />
+                </div>
+              </div>
+              <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 flex items-center justify-between group hover:scale-[1.02] hover:shadow-lg transition-all duration-300">
+                <div>
+                  <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">Urgentes</p>
+                  <p className="text-3xl font-bold text-red-600 dark:text-red-500">{stats.urgent}</p>
+                </div>
+                <div className="bg-red-100 dark:bg-red-900/30 p-3 rounded-full text-red-600 dark:text-red-500 group-hover:scale-110 transition-transform">
+                  <Clock size={24} />
+                </div>
+              </div>
+              <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 flex items-center justify-between group hover:scale-[1.02] hover:shadow-lg transition-all duration-300">
+                <div>
+                  <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">Resueltos</p>
+                  <p className="text-3xl font-bold text-green-600 dark:text-green-500">{stats.resolved}</p>
+                </div>
+                <div className="bg-green-100 dark:bg-green-900/30 p-3 rounded-full text-green-600 dark:text-green-500 group-hover:rotate-12 transition-transform">
+                  <CheckCircle2 size={24} />
+                </div>
+              </div>
+            </div>
+
+            {/* Split View: 3/4 Open, 1/4 Resolved (Compact) */}
+            <div className="flex flex-col lg:flex-row gap-6 items-start">
+               
+               {/* LEFT: PENDING TICKETS (Main Focus) */}
+               <div className="flex-1 w-full space-y-4">
+                  <h3 className="text-lg font-bold text-gray-800 dark:text-white flex items-center gap-2 mb-2">
+                    <Inbox className="text-amber-600" size={20} /> Pendientes de Atención
+                  </h3>
+                  
+                  {openTickets.length === 0 ? (
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl p-12 text-center border border-gray-200 dark:border-gray-700 border-dashed">
+                      <div className="bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <CheckCircle2 size={32} />
+                      </div>
+                      <h3 className="text-xl font-bold text-gray-800 dark:text-white">¡Todo listo!</h3>
+                      <p className="text-gray-500 dark:text-gray-400">No hay tickets pendientes por resolver.</p>
+                    </div>
+                  ) : (
+                    openTickets.map(ticket => (
+                      <TicketCard 
+                        key={ticket.id} 
+                        ticket={ticket} 
+                        isAdmin={isAdmin} 
+                        isHighlighted={highlightedTicketId === ticket.id}
+                        onResolve={handleResolveTicket}
+                        onReopen={handleReopenTicket}
+                        onAddComment={handleAddComment}
+                      />
+                    ))
+                  )}
+               </div>
+
+               {/* RIGHT: RESOLVED LIST (Compact Sidebar) */}
+               <div className="w-full lg:w-80 shrink-0">
+                  <div className="bg-gray-100 dark:bg-gray-800/50 rounded-2xl p-4 border border-gray-200 dark:border-gray-700/50 sticky top-20">
+                    <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                      <Archive size={16} /> Resueltos Recientes
+                    </h3>
+                    
+                    <div className="space-y-2 max-h-[calc(100vh-300px)] overflow-y-auto custom-scrollbar pr-1">
+                      {resolvedTickets.length === 0 && (
+                        <p className="text-xs text-gray-400 italic">No hay tickets resueltos.</p>
+                      )}
+                      
+                      {resolvedTickets.map(ticket => (
+                        <div 
+                          key={ticket.id}
+                          className="group bg-white dark:bg-gray-800 p-3 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-indigo-300 dark:hover:border-indigo-700 transition-all cursor-pointer relative"
+                          onClick={() => setSelectedTicket(ticket)}
+                          title="Click para ver detalles"
+                        >
+                          <div className="flex justify-between items-start mb-1">
+                             <span className="text-[10px] font-bold text-gray-400">#{ticket.number}</span>
+                             <span className="text-[10px] text-gray-400 flex items-center gap-1">
+                               {ticket.resolvedAt && new Date(ticket.resolvedAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                             </span>
+                          </div>
+                          
+                          <div className="flex items-center gap-2 mb-1">
+                             <div className="w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0 text-[10px] font-bold">
+                               {ticket.creatorName.charAt(0)}
+                             </div>
+                             <p className="text-xs font-semibold text-gray-600 dark:text-gray-300 line-through decoration-gray-400 opacity-80 truncate">
+                               {ticket.title}
+                             </p>
+                          </div>
+                          
+                          {/* Snippet of description */}
+                          <p className="text-[10px] text-gray-400 dark:text-gray-500 line-clamp-2 leading-relaxed">
+                            {ticket.description}
+                          </p>
+                          
+                          {/* Hover Action: Reopen */}
+                          {isAdmin && (
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleReopenTicket(ticket.id);
+                                }}
+                                className="absolute right-2 bottom-2 p-1.5 bg-amber-100 text-amber-600 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-amber-200"
+                                title="Reabrir ticket rápidamente"
+                            >
+                                <RotateCcw size={14} />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+               </div>
+
+            </div>
+          </div>
+        );
+    }
+  };
 
   return (
     <Layout 
@@ -347,348 +621,43 @@ const App: React.FC = () => {
       isDarkMode={isDarkMode}
       onToggleTheme={() => setIsDarkMode(!isDarkMode)}
     >
-      {/* Toast */}
-      {notification && (
-        <div className="fixed top-4 right-4 z-50 bg-gray-900 dark:bg-gray-700 text-white px-6 py-3 rounded-lg shadow-xl flex items-center gap-3 animate-in fade-in slide-in-from-right-5 duration-300">
-          <CheckCircle2 size={20} className="text-green-400" />
-          {notification}
-        </div>
-      )}
+      {renderContent()}
 
-      {/* Ticket Details Modal */}
+      {/* --- SELECTED TICKET MODAL --- */}
       {selectedTicket && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-2xl animate-in zoom-in-95 duration-200 relative">
-             <button 
-                onClick={() => setSelectedTicket(null)}
-                className="absolute -top-12 right-0 md:-right-12 text-white hover:text-gray-200 transition-colors bg-white/10 p-2 rounded-full"
-                title="Cerrar ventana"
-             >
-               <X size={24} />
-             </button>
-             <TicketCard 
-                ticket={selectedTicket}
-                isAdmin={isAdmin}
-                onResolve={handleResolveTicket}
-                onReopen={handleReopenTicket}
-                onAddComment={handleAddComment}
-                defaultExpanded={true}
-             />
-          </div>
-          {/* Click outside to close */}
-          <div className="absolute inset-0 -z-10" onClick={() => setSelectedTicket(null)}></div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+           <div className="bg-white dark:bg-gray-800 w-full max-w-3xl max-h-[90vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-300">
+              <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700/30">
+                 <h3 className="font-bold text-gray-700 dark:text-white flex items-center gap-2">
+                   Vista Detallada <span className="text-xs px-2 py-0.5 bg-gray-200 dark:bg-gray-600 rounded text-gray-600 dark:text-gray-300">#{selectedTicket.number}</span>
+                 </h3>
+                 <button 
+                   onClick={() => setSelectedTicket(null)}
+                   className="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-400 transition-colors"
+                   title="Cerrar ventana"
+                 >
+                   <X size={20} />
+                 </button>
+              </div>
+              <div className="p-6 overflow-y-auto custom-scrollbar">
+                 <TicketCard 
+                    ticket={selectedTicket} 
+                    isAdmin={isAdmin} 
+                    onResolve={handleResolveTicket}
+                    onReopen={handleReopenTicket}
+                    onAddComment={handleAddComment}
+                    defaultExpanded={true} // Auto expand in modal
+                 />
+              </div>
+           </div>
         </div>
       )}
 
-      {/* View Routing */}
-      {activeTab === 'users' && (
-        <UserManagement 
-          users={users} 
-          onAddUser={handleAddUser} 
-          onDeleteUser={handleDeleteUser} 
-        />
-      )}
-
-      {activeTab === 'subjects' && (
-        <SubjectManagement 
-          subjects={subjects} 
-          onAddSubject={handleAddSubject} 
-          onDeleteSubject={handleDeleteSubject} 
-        />
-      )}
-
-      {activeTab === 'data' && (
-        <DataManagement 
-          data={{ tickets, users, subjects }} 
-          onImport={handleImportData} 
-        />
-      )}
-
-      {activeTab === 'create' && (
-        <TicketForm 
-          users={users}
-          subjects={subjects}
-          onSubmit={handleCreateTicket} 
-          onCancel={() => setActiveTab('dashboard')} 
-          onNavigateToUsers={() => setActiveTab('users')}
-          onNavigateToSubjects={() => setActiveTab('subjects')}
-        />
-      )}
-
-      {activeTab === 'mytickets' && (
-        <MyTickets 
-          tickets={tickets} 
-          users={users} 
-          isAdmin={isAdmin} 
-          onResolve={handleResolveTicket}
-          onReopen={handleReopenTicket}
-          onAddComment={handleAddComment}
-        />
-      )}
-
-      {(activeTab === 'dashboard' || activeTab === 'history') && (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
-          {/* Stats (Dashboard only) */}
-          {activeTab === 'dashboard' && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm flex items-center justify-between transition-all duration-300 hover:shadow-lg hover:scale-[1.02] cursor-default group">
-                <div>
-                  <p className="text-gray-500 dark:text-gray-400 text-sm font-medium group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">Tickets Abiertos</p>
-                  <p className="text-3xl font-bold text-gray-800 dark:text-white mt-1">{stats.open}</p>
-                </div>
-                <div className="bg-amber-100 dark:bg-amber-900/30 p-3 rounded-xl text-amber-600 dark:text-amber-400 group-hover:bg-amber-200 dark:group-hover:bg-amber-900/50 transition-colors">
-                  <Inbox size={24} />
-                </div>
-              </div>
-              <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm flex items-center justify-between transition-all duration-300 hover:shadow-lg hover:scale-[1.02] cursor-default group">
-                <div>
-                  <p className="text-gray-500 dark:text-gray-400 text-sm font-medium group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">Resueltos Total</p>
-                  <p className="text-3xl font-bold text-gray-800 dark:text-white mt-1">{stats.resolved}</p>
-                </div>
-                <div className="bg-green-100 dark:bg-green-900/30 p-3 rounded-xl text-green-600 dark:text-green-400 group-hover:bg-green-200 dark:group-hover:bg-green-900/50 transition-colors">
-                  <CheckCircle2 size={24} />
-                </div>
-              </div>
-              <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm flex items-center justify-between transition-all duration-300 hover:shadow-lg hover:scale-[1.02] cursor-default group">
-                <div>
-                  <p className="text-gray-500 dark:text-gray-400 text-sm font-medium group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors">Urgentes</p>
-                  <p className="text-3xl font-bold text-gray-800 dark:text-white mt-1">{stats.urgent}</p>
-                </div>
-                <div className="bg-red-100 dark:bg-red-900/30 p-3 rounded-xl text-red-600 dark:text-red-400 group-hover:bg-red-200 dark:group-hover:bg-red-900/50 transition-colors">
-                  <Flame size={24} />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Filters */}
-          <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 border border-gray-200 dark:border-gray-700 shadow-sm transition-colors">
-            <div className="flex flex-col lg:flex-row gap-4">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                <input 
-                  type="text"
-                  placeholder="Buscar..."
-                  className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-900 focus:border-indigo-400 text-gray-800 dark:text-gray-100 transition-all"
-                  value={filters.search}
-                  onChange={(e) => setFilters({...filters, search: e.target.value})}
-                />
-              </div>
-              
-              <div className="flex flex-wrap gap-2 lg:gap-4">
-                {activeTab === 'history' && (
-                  <select 
-                    className="px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-600 dark:text-gray-300 focus:outline-none focus:border-indigo-400 cursor-pointer"
-                    value={filters.status}
-                    onChange={(e) => setFilters({...filters, status: e.target.value as any})}
-                  >
-                    <option value="ALL">Todos los Estados</option>
-                    <option value={TicketStatus.OPEN}>{TicketStatus.OPEN}</option>
-                    <option value={TicketStatus.RESOLVED}>{TicketStatus.RESOLVED}</option>
-                  </select>
-                )}
-
-                <select 
-                  className="px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-600 dark:text-gray-300 focus:outline-none focus:border-indigo-400 cursor-pointer"
-                  value={filters.topic}
-                  onChange={(e) => setFilters({...filters, topic: e.target.value as any})}
-                >
-                  <option value="ALL">Todos los Temas</option>
-                  {Object.values(TicketTopic).map(t => (
-                    <option key={t} value={t}>{t}</option>
-                  ))}
-                </select>
-
-                <select 
-                  className="px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-600 dark:text-gray-300 focus:outline-none focus:border-indigo-400 cursor-pointer"
-                  value={filters.priority}
-                  onChange={(e) => setFilters({...filters, priority: e.target.value as any})}
-                >
-                  <option value="ALL">Todas las Prioridades</option>
-                  {Object.values(TicketPriority).map(p => (
-                    <option key={p} value={p}>{p}</option>
-                  ))}
-                </select>
-
-                <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-2">
-                  <CalendarDays size={16} className="text-gray-400" />
-                  <input 
-                    type="date"
-                    className="bg-transparent py-2 text-sm text-gray-600 dark:text-gray-300 focus:outline-none w-32 [color-scheme:light] dark:[color-scheme:dark]"
-                    value={filters.dateStart}
-                    onChange={(e) => setFilters({...filters, dateStart: e.target.value})}
-                  />
-                  <span className="text-gray-400">-</span>
-                  <input 
-                    type="date"
-                    className="bg-transparent py-2 text-sm text-gray-600 dark:text-gray-300 focus:outline-none w-32 [color-scheme:light] dark:[color-scheme:dark]"
-                    value={filters.dateEnd}
-                    onChange={(e) => setFilters({...filters, dateEnd: e.target.value})}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Layout Switch: Dashboard (Split) vs History (Unified) */}
-          
-          {activeTab === 'dashboard' && filters.status === 'ALL' ? (
-             // DASHBOARD SPLIT VIEW (New Layout 75% / 25%)
-             <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">
-                
-                {/* Column 1: PENDING (Priority - 75% width) */}
-                <div className="lg:col-span-3 w-full space-y-4">
-                  <div className="flex items-center gap-2 pb-2 border-b border-gray-200 dark:border-gray-700">
-                    <Flame className="text-orange-500" size={24} />
-                    <h3 className="text-xl font-bold text-gray-800 dark:text-white">Pendientes</h3>
-                    <span className="bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 text-xs font-bold px-2 py-0.5 rounded-full">
-                      {openTickets.length}
-                    </span>
-                  </div>
-
-                  {openTickets.length > 0 ? (
-                    <div className="grid grid-cols-1 gap-4">
-                      {openTickets
-                        // Sort by Priority (Urgent first) then Date
-                        .sort((a, b) => {
-                             const priorityOrder = { [TicketPriority.URGENT]: 3, [TicketPriority.HIGH]: 2, [TicketPriority.NORMAL]: 1, [TicketPriority.LOW]: 0 };
-                             return priorityOrder[b.priority] - priorityOrder[a.priority] || b.createdAt - a.createdAt;
-                        })
-                        .map(ticket => (
-                        <TicketCard 
-                          key={ticket.id} 
-                          ticket={ticket} 
-                          isAdmin={isAdmin} 
-                          isHighlighted={ticket.id === highlightedTicketId}
-                          onResolve={handleResolveTicket}
-                          onReopen={handleReopenTicket}
-                          onAddComment={handleAddComment}
-                        />
-                      ))}
-                    </div>
-                  ) : (
-                     <div className="bg-white dark:bg-gray-800 rounded-xl p-12 text-center border border-dashed border-gray-300 dark:border-gray-700">
-                        <CheckCircle2 size={48} className="mx-auto text-green-500/50 mb-4" />
-                        <h4 className="text-lg font-semibold text-gray-700 dark:text-gray-200">¡Todo limpio!</h4>
-                        <p className="text-gray-500 dark:text-gray-400">No hay tickets pendientes por resolver.</p>
-                     </div>
-                  )}
-                </div>
-
-                {/* Column 2: RESOLVED (Sidebar - 25% width - Enhanced) */}
-                <div className="lg:col-span-1 w-full space-y-4">
-                  <div className="flex items-center gap-2 pb-2 border-b border-gray-200 dark:border-gray-700">
-                    <Archive className="text-gray-400" size={20} />
-                    <h3 className="text-lg font-bold text-gray-500 dark:text-gray-400">Archivo</h3>
-                    <span className="bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-xs font-bold px-2 py-0.5 rounded-full">
-                      {resolvedTickets.length}
-                    </span>
-                  </div>
-
-                  <div className="bg-gray-50 dark:bg-gray-800/40 rounded-xl p-3 border border-gray-100 dark:border-gray-800/50">
-                    {resolvedTickets.length > 0 ? (
-                      <div className="space-y-3 max-h-[600px] overflow-y-auto custom-scrollbar pr-1">
-                        {resolvedTickets.map(ticket => (
-                          <div 
-                             key={ticket.id} 
-                             onClick={() => setSelectedTicket(ticket)}
-                             title={`Ver detalles de: #${ticket.number} ${ticket.title}`}
-                             className="group p-3 rounded-xl bg-white dark:bg-gray-800 border border-transparent hover:border-indigo-200 dark:hover:border-indigo-900 shadow-sm hover:shadow-md cursor-pointer transition-all"
-                          >
-                            <div className="flex justify-between items-start gap-2 mb-1">
-                                <span className="text-xs font-bold text-gray-400 line-through decoration-gray-300 dark:decoration-gray-600 truncate flex-1">
-                                    <span className="mr-1 opacity-70">#{ticket.number}</span>{ticket.title}
-                                </span>
-                                <span className="text-[10px] text-gray-400 whitespace-nowrap">
-                                    {ticket.resolvedAt 
-                                      ? new Date(ticket.resolvedAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
-                                      : ''}
-                                </span>
-                            </div>
-                            
-                            <div className="flex items-center gap-1.5 mb-1.5">
-                                <UserIcon size={10} className="text-gray-400" />
-                                <span className="text-xs font-medium text-gray-600 dark:text-gray-300">{ticket.creatorName}</span>
-                            </div>
-
-                            <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 leading-relaxed">
-                                {ticket.description || "Sin descripción"}
-                            </p>
-                            
-                            <div className="mt-2 text-[10px] text-indigo-500 dark:text-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity font-medium">
-                                Click para ver detalles
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-xs text-gray-400 text-center py-8">
-                        No hay historial reciente.
-                      </div>
-                    )}
-                  </div>
-                </div>
-             </div>
-          ) : (
-            // HISTORIAL / FILTERED LIST VIEW (Uses standard cards for everything)
-            <div className="space-y-4">
-              <div className="flex items-center justify-between px-2">
-                <h3 className="text-xl font-bold text-gray-800 dark:text-white">
-                  {activeTab === 'history' ? 'Historial Completo' : 'Resultados de Búsqueda'}
-                </h3>
-                <div className="flex gap-4 items-center">
-                    {activeTab === 'history' && (
-                        <button 
-                            onClick={handleExportCSV}
-                            className="text-sm flex items-center gap-1 text-green-600 dark:text-green-400 hover:underline font-medium"
-                            title="Exportar listado actual a Excel/CSV"
-                        >
-                            <Download size={14} /> Exportar CSV
-                        </button>
-                    )}
-                    <span className="text-sm text-gray-500 dark:text-gray-400">
-                    {filteredTickets.length} resultados
-                    </span>
-                </div>
-              </div>
-
-              {filteredTickets.length > 0 ? (
-                <div className="grid grid-cols-1 gap-4">
-                  {filteredTickets.map(ticket => (
-                    <TicketCard 
-                      key={ticket.id} 
-                      ticket={ticket} 
-                      isAdmin={isAdmin} 
-                      isHighlighted={ticket.id === highlightedTicketId}
-                      onResolve={handleResolveTicket}
-                      onReopen={handleReopenTicket}
-                      onAddComment={handleAddComment}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-20 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 border-dashed transition-colors">
-                  <div className="bg-gray-50 dark:bg-gray-700 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                     <Filter className="text-gray-400 dark:text-gray-500" size={32} />
-                  </div>
-                  <p className="text-gray-500 dark:text-gray-400 font-medium">No se encontraron tickets con estos filtros.</p>
-                  <button 
-                    onClick={() => setFilters({
-                      status: 'ALL',
-                      topic: 'ALL',
-                      priority: 'ALL',
-                      search: '',
-                      dateStart: '',
-                      dateEnd: ''
-                    })}
-                    className="mt-2 text-indigo-600 dark:text-indigo-400 text-sm hover:underline"
-                  >
-                    Limpiar filtros
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
+      {/* Notification Toast */}
+      {notification && (
+        <div className="fixed bottom-6 right-6 bg-gray-900 dark:bg-white text-white dark:text-gray-900 px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-bottom-5 duration-300 z-50">
+          <CheckCircle2 size={20} className="text-green-400 dark:text-green-600" />
+          <span className="font-medium">{notification}</span>
         </div>
       )}
     </Layout>

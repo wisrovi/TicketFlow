@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Ticket, TicketStatus, TicketTopic, TicketPriority } from '../types';
-import { CheckCircle2, Clock, User, Sparkles, ChevronDown, ChevronUp, ExternalLink, RotateCcw, Check, Hash, AlertCircle, FileText, MessageSquare, Send, ShieldCheck, Bold, Italic, List } from 'lucide-react';
+import { CheckCircle2, Clock, User, Sparkles, ChevronDown, ChevronUp, ExternalLink, RotateCcw, Check, Hash, AlertCircle, FileText, MessageSquare, Send, ShieldCheck, Bold, Italic, List, EyeOff } from 'lucide-react';
 import { getSolutionInsight } from '../services/geminiService';
 
 interface TicketCardProps {
@@ -298,17 +298,33 @@ export const TicketCard: React.FC<TicketCardProps> = ({
           )}
 
           {isAdmin && isResolved && (
-             <button
-                onClick={(e) => {
-                    e.stopPropagation();
-                    onReopen(ticket.id);
-                }}
-                className="shrink-0 bg-amber-500 hover:bg-amber-600 text-white p-2 rounded-xl transition-all shadow-sm group flex items-center gap-2 hover:shadow-md"
-                title="Reabrir ticket y marcar como pendiente"
-             >
-                <RotateCcw size={20} className="group-hover:-rotate-180 transition-transform duration-500" />
-                <span className="text-xs font-medium hidden sm:inline">Reabrir</span>
-             </button>
+             <div className="flex gap-2">
+                 {/* Mark as Unread / Pending Review Button */}
+                 <button
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onReopen(ticket.id);
+                    }}
+                    className="shrink-0 bg-blue-100 hover:bg-blue-200 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/50 p-2 rounded-xl transition-all shadow-sm group flex items-center gap-2"
+                    title="Marcar como pendiente de revisión"
+                 >
+                    <EyeOff size={20} className="transition-transform" />
+                    <span className="text-xs font-medium hidden sm:inline">Revisión</span>
+                 </button>
+
+                 {/* Reopen / Recurrence Button */}
+                 <button
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onReopen(ticket.id);
+                    }}
+                    className="shrink-0 bg-amber-500 hover:bg-amber-600 text-white p-2 rounded-xl transition-all shadow-sm group flex items-center gap-2 hover:shadow-md"
+                    title="Reabrir ticket por recurrencia"
+                 >
+                    <RotateCcw size={20} className="group-hover:-rotate-180 transition-transform duration-500" />
+                    <span className="text-xs font-medium hidden sm:inline">Reabrir</span>
+                 </button>
+             </div>
           )}
         </div>
       </div>

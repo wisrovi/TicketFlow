@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { LayoutDashboard, PlusCircle, History, Users, Database, UserCircle, Tag, Sun, Moon, Lock, UserCheck, Menu, HelpCircle, Heart, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, PlusCircle, History, Users, Database, UserCircle, Tag, Sun, Moon, Lock, UserCheck, Menu, HelpCircle, Heart, ChevronLeft, ChevronRight, Settings as SettingsIcon, Sparkles } from 'lucide-react';
 import { AboutModal } from './AboutModal';
 import { HelpModal } from './HelpModal';
 
 interface LayoutProps {
   children: React.ReactNode;
-  activeTab: 'dashboard' | 'create' | 'history' | 'users' | 'subjects' | 'data' | 'mytickets';
-  onTabChange: (tab: 'dashboard' | 'create' | 'history' | 'users' | 'subjects' | 'data' | 'mytickets') => void;
+  activeTab: 'dashboard' | 'create' | 'history' | 'users' | 'subjects' | 'data' | 'mytickets' | 'presentation' | 'settings' | 'about';
+  onTabChange: (tab: 'dashboard' | 'create' | 'history' | 'users' | 'subjects' | 'data' | 'mytickets' | 'presentation' | 'settings' | 'about') => void;
   isAdmin: boolean;
   onToggleAdmin: () => void;
   isDarkMode: boolean;
@@ -30,12 +30,14 @@ export const Layout: React.FC<LayoutProps> = ({
   // Define nav items with allowed roles ('all', 'admin', 'user')
   const allNavItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['all'] },
-    { id: 'mytickets', label: 'Mis Tickets', icon: UserCheck, roles: ['user'] },
+    { id: 'presentation', label: 'Presentación', icon: Sparkles, roles: ['all'] },
     { id: 'create', label: 'Nuevo Ticket', icon: PlusCircle, roles: ['all'] },
     { id: 'history', label: 'Historial', icon: History, roles: ['admin'] },
     { id: 'users', label: 'Usuarios', icon: Users, roles: ['admin'] },
     { id: 'subjects', label: 'Asuntos', icon: Tag, roles: ['admin'] },
     { id: 'data', label: 'Datos / Backup', icon: Database, roles: ['admin'] },
+    { id: 'settings', label: 'Configuración', icon: SettingsIcon, roles: ['all'] },
+    { id: 'about', label: 'Acerca de', icon: Heart, roles: ['all'] },
   ] as const;
 
   // Filter items based on current role
