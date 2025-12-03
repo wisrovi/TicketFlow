@@ -11,7 +11,7 @@ import { Presentation } from './components/Presentation';
 import { Settings } from './components/Settings';
 import { AboutView } from './components/AboutView';
 import { Ticket, TicketStatus, TicketTopic, TicketPriority, FilterState, User, Subject, AppData, Comment } from './types';
-import { Filter, Search, Inbox, CheckCircle2, Clock, CalendarDays, Flame, Archive, RotateCcw, X, User as UserIcon, Download } from 'lucide-react';
+import { Filter, Search, Inbox, CheckCircle2, Clock, CalendarDays, Flame, Archive, RotateCcw, X, User as UserIcon, Download, Sparkles } from 'lucide-react';
 
 const App: React.FC = () => {
   const [tickets, setTickets] = useState<Ticket[]>([]);
@@ -128,7 +128,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (notification) {
-      const timer = setTimeout(() => setNotification(null), 3000);
+      const timer = setTimeout(() => setNotification(null), 4000);
       return () => clearTimeout(timer);
     }
   }, [notification]);
@@ -299,6 +299,16 @@ const App: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
+  const handleToggleAi = () => {
+    const newState = !isAiEnabled;
+    setIsAiEnabled(newState);
+    if (newState) {
+      setNotification("✨ IA Activada: Categorización automática y respuestas inteligentes habilitadas.");
+    } else {
+      setNotification("Funcionalidades de IA desactivadas.");
+    }
+  };
+
   // --- Filtering & Stats ---
   const filteredTickets = useMemo(() => {
     return tickets.filter(ticket => {
@@ -356,7 +366,7 @@ const App: React.FC = () => {
       case 'data':
         return <DataManagement data={{ tickets, users, subjects }} onImport={handleImportData} />;
       case 'settings':
-        return <Settings isDarkMode={isDarkMode} onToggleTheme={() => setIsDarkMode(!isDarkMode)} isAiEnabled={isAiEnabled} onToggleAi={() => setIsAiEnabled(!isAiEnabled)} />;
+        return <Settings isDarkMode={isDarkMode} onToggleTheme={() => setIsDarkMode(!isDarkMode)} isAiEnabled={isAiEnabled} onToggleAi={handleToggleAi} />;
       case 'about':
         return <AboutView />;
       case 'history':
@@ -482,7 +492,7 @@ const App: React.FC = () => {
                              <div className="w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0 text-[10px] font-bold">{ticket.creatorName.charAt(0)}</div>
                              <p className="text-xs font-semibold text-gray-600 dark:text-gray-300 line-through decoration-gray-400 opacity-80 truncate">{ticket.title}</p>
                           </div>
-                          <p className="text-[10px] text-gray-400 dark:text-gray-500 line-clamp-2 leading-relaxed">{ticket.description}</p>
+                          <p className="text--[10px] text-gray-400 dark:text-gray-500 line-clamp-2 leading-relaxed">{ticket.description}</p>
                           {isAdmin && (
                             <button onClick={(e) => { e.stopPropagation(); handleReopenTicket(ticket.id); }} className="absolute right-2 bottom-2 p-1.5 bg-amber-100 text-amber-600 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-amber-200" title="Reabrir ticket rápidamente"><RotateCcw size={14} /></button>
                           )}
@@ -529,8 +539,11 @@ const App: React.FC = () => {
         </div>
       )}
       {notification && (
-        <div className="fixed bottom-6 right-6 bg-gray-900 dark:bg-white text-white dark:text-gray-900 px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-bottom-5 duration-300 z-50">
-          <CheckCircle2 size={20} className="text-green-400 dark:text-green-600" /><span className="font-medium">{notification}</span>
+        <div className="fixed bottom-6 right-6 bg-gray-900 dark:bg-white text-white dark:text-gray-900 px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-bottom-5 duration-300 z-50 max-w-md border border-gray-800 dark:border-gray-200">
+          <div className="p-1 bg-green-500/20 rounded-full shrink-0">
+             {notification.includes('IA') ? <Sparkles size={20} className="text-purple-400 dark:text-purple-600" /> : <CheckCircle2 size={20} className="text-green-400 dark:text-green-600" />}
+          </div>
+          <span className="font-medium text-sm leading-snug">{notification}</span>
         </div>
       )}
     </Layout>

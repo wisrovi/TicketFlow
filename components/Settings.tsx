@@ -1,5 +1,5 @@
 import React from 'react';
-import { Moon, Sun, Bell, Shield, Trash2, Sparkles, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Moon, Sun, Bell, Shield, Trash2, Sparkles, ToggleLeft, ToggleRight, Wand2, MessageSquare, Tag } from 'lucide-react';
 
 interface SettingsProps {
   isDarkMode: boolean;
@@ -19,25 +19,60 @@ export const Settings: React.FC<SettingsProps> = ({ isDarkMode, onToggleTheme, i
       </div>
 
       {/* IA Settings */}
-      <div className="bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 rounded-2xl p-6 border border-purple-200 dark:border-purple-800 shadow-sm">
-        <h3 className="font-bold text-purple-900 dark:text-purple-200 mb-4 flex items-center gap-2">
-          <Sparkles size={20} className="text-purple-600 dark:text-purple-400" /> Inteligencia Artificial
-        </h3>
-        <div className="flex items-center justify-between">
-          <div className="pr-4">
-            <p className="font-medium text-gray-800 dark:text-gray-200">Funcionalidades Smart con Gemini</p>
-            <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 leading-relaxed">
-              Activa funciones como auto-categorización de tickets, mejora de redacción y sugerencia de respuestas inteligentes. 
-              <br/><span className="italic opacity-70">(Requiere API Key configurada internamente)</span>
-            </p>
+      <div className={`rounded-2xl border transition-all duration-300 overflow-hidden ${isAiEnabled ? 'bg-purple-50 dark:bg-purple-900/10 border-purple-200 dark:border-purple-800' : 'bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-800 border-gray-200 dark:border-gray-700'}`}>
+        <div className="p-6">
+          <h3 className="font-bold text-purple-900 dark:text-purple-200 mb-4 flex items-center gap-2">
+            <Sparkles size={20} className="text-purple-600 dark:text-purple-400" /> Inteligencia Artificial
+          </h3>
+          <div className="flex items-center justify-between">
+            <div className="pr-4">
+              <p className="font-medium text-gray-800 dark:text-gray-200">Funcionalidades Smart con Gemini</p>
+              <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 leading-relaxed">
+                Activa funciones como auto-categorización de tickets, mejora de redacción y sugerencia de respuestas inteligentes. 
+                <br/><span className="italic opacity-70">(Requiere API Key configurada internamente)</span>
+              </p>
+            </div>
+            <button 
+              onClick={onToggleAi}
+              className={`shrink-0 text-4xl transition-colors ${isAiEnabled ? 'text-purple-600 dark:text-purple-400' : 'text-gray-300 dark:text-gray-600'}`}
+              title={isAiEnabled ? 'Desactivar IA' : 'Activar IA'}
+            >
+              {isAiEnabled ? <ToggleRight size={48} /> : <ToggleLeft size={48} />}
+            </button>
           </div>
-          <button 
-            onClick={onToggleAi}
-            className={`shrink-0 text-4xl transition-colors ${isAiEnabled ? 'text-purple-600 dark:text-purple-400' : 'text-gray-300 dark:text-gray-600'}`}
-          >
-            {isAiEnabled ? <ToggleRight size={48} /> : <ToggleLeft size={48} />}
-          </button>
         </div>
+        
+        {/* Helper Guide appearing when AI is enabled */}
+        {isAiEnabled && (
+          <div className="px-6 pb-6 pt-0 animate-in slide-in-from-top-4 fade-in duration-500">
+             <div className="bg-white/60 dark:bg-gray-900/40 rounded-xl p-4 text-sm border border-purple-100 dark:border-purple-900/30">
+               <h4 className="font-bold text-purple-800 dark:text-purple-300 mb-2 text-xs uppercase tracking-wide">Cómo usar las nuevas funciones:</h4>
+               <ul className="space-y-3">
+                 <li className="flex gap-3">
+                   <div className="p-1.5 bg-purple-100 dark:bg-purple-900/50 rounded-lg text-purple-600 dark:text-purple-400 h-fit"><Tag size={14} /></div>
+                   <div>
+                     <strong className="text-gray-700 dark:text-gray-300">Auto-categorización:</strong>
+                     <p className="text-gray-500 dark:text-gray-400 text-xs">Al crear un ticket, escribe la descripción y espera unos segundos. La IA detectará la <strong>Prioridad</strong> y la <strong>Categoría</strong> automáticamente.</p>
+                   </div>
+                 </li>
+                 <li className="flex gap-3">
+                   <div className="p-1.5 bg-purple-100 dark:bg-purple-900/50 rounded-lg text-purple-600 dark:text-purple-400 h-fit"><Wand2 size={14} /></div>
+                   <div>
+                     <strong className="text-gray-700 dark:text-gray-300">Mejora de Texto:</strong>
+                     <p className="text-gray-500 dark:text-gray-400 text-xs">En el formulario de creación, usa el botón "Mejorar Redacción" para que la IA reescriba tu problema de forma profesional.</p>
+                   </div>
+                 </li>
+                 <li className="flex gap-3">
+                   <div className="p-1.5 bg-purple-100 dark:bg-purple-900/50 rounded-lg text-purple-600 dark:text-purple-400 h-fit"><MessageSquare size={14} /></div>
+                   <div>
+                     <strong className="text-gray-700 dark:text-gray-300">Respuestas Inteligentes:</strong>
+                     <p className="text-gray-500 dark:text-gray-400 text-xs">Al responder un ticket, usa el botón "Respuesta Mágica" para generar una respuesta empática basada en el historial.</p>
+                   </div>
+                 </li>
+               </ul>
+             </div>
+          </div>
+        )}
       </div>
 
       {/* Apariencia */}
