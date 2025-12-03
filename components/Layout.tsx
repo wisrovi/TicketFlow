@@ -35,7 +35,7 @@ export const Layout: React.FC<LayoutProps> = ({
     { id: 'users', label: 'Usuarios', icon: Users, roles: ['admin'] },
     { id: 'subjects', label: 'Asuntos', icon: Tag, roles: ['admin'] },
     { id: 'data', label: 'Datos / Backup', icon: Database, roles: ['admin'] },
-    { id: 'settings', label: 'Configuración', icon: SettingsIcon, roles: ['all'] },
+    { id: 'settings', label: 'Configuración', icon: SettingsIcon, roles: ['admin'] },
     { id: 'about', label: 'Acerca de', icon: Heart, roles: ['all'] },
   ] as const;
 
