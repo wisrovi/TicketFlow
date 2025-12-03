@@ -173,8 +173,8 @@ export const TicketCard: React.FC<TicketCardProps> = ({
                 <h4 className="text-sm font-bold text-gray-800 dark:text-white mb-2">Finalizar Ticket</h4>
                 <textarea className="w-full text-sm p-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg mb-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-800 dark:text-white" placeholder="Bitácora: ¿Qué solución se aplicó?" rows={3} value={resolutionNote} onChange={(e) => setResolutionNote(e.target.value)} autoFocus />
                 <div className="flex gap-2 justify-end">
-                    <button onClick={(e) => { e.stopPropagation(); setShowResolveConfirm(false); setResolutionNote(''); }} className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 px-3 py-1.5">Cancelar</button>
-                    <button onClick={(e) => { e.stopPropagation(); onResolve(ticket.id, resolutionNote); setShowResolveConfirm(false); setResolutionNote(''); }} className="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg font-medium flex items-center gap-1"><Check size={14} /> Confirmar</button>
+                    <button onClick={(e) => { e.stopPropagation(); setShowResolveConfirm(false); setResolutionNote(''); }} className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 px-3 py-1.5" title="Cancelar resolución">Cancelar</button>
+                    <button onClick={(e) => { e.stopPropagation(); onResolve(ticket.id, resolutionNote); setShowResolveConfirm(false); setResolutionNote(''); }} className="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg font-medium flex items-center gap-1" title="Confirmar resolución del ticket"><Check size={14} /> Confirmar</button>
                 </div>
               </div>
             ) : (
@@ -183,7 +183,7 @@ export const TicketCard: React.FC<TicketCardProps> = ({
           )}
           {isAdmin && isResolved && (
              <div className="flex gap-2">
-                 <button onClick={(e) => { e.stopPropagation(); onReopen(ticket.id); }} className="shrink-0 bg-blue-100 hover:bg-blue-200 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/50 p-2 rounded-xl transition-all shadow-sm group flex items-center gap-2" title="Marcar como pendiente de revisión"><EyeOff size={20} className="transition-transform" /><span className="text-xs font-medium hidden sm:inline">Revisión</span></button>
+                 <button onClick={(e) => { e.stopPropagation(); onReopen(ticket.id); }} className="shrink-0 bg-blue-100 hover:bg-blue-200 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/50 p-2 rounded-xl transition-all shadow-sm group flex items-center gap-2" title="Marcar ticket como No Leído / Pendiente de Revisión"><EyeOff size={20} className="transition-transform" /><span className="text-xs font-medium hidden sm:inline">No Leído</span></button>
                  <button onClick={(e) => { e.stopPropagation(); onReopen(ticket.id); }} className="shrink-0 bg-amber-500 hover:bg-amber-600 text-white p-2 rounded-xl transition-all shadow-sm group flex items-center gap-2 hover:shadow-md" title="Reabrir ticket por recurrencia"><RotateCcw size={20} className="group-hover:-rotate-180 transition-transform duration-500" /><span className="text-xs font-medium hidden sm:inline">Reabrir</span></button>
              </div>
           )}
