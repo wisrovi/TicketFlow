@@ -164,7 +164,14 @@ export const TicketCard: React.FC<TicketCardProps> = ({
             <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${topicColors[ticket.topic]}`}>{ticket.topic}</span>
             <span className="text-xs text-gray-400 dark:text-gray-500 flex items-center gap-1"><Clock size={12} />{isResolved && ticket.resolvedAt ? `Resuelto: ${new Date(ticket.resolvedAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}` : new Date(ticket.createdAt).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
           </div>
-          <h3 className={`text-lg font-bold transition-colors ${isResolved ? 'text-gray-600 dark:text-gray-400 decoration-gray-400' : 'text-gray-800 dark:text-white'}`}>{ticket.title}</h3>
+          <h3 className={`text-lg font-bold transition-colors flex items-center gap-2 ${isResolved ? 'text-gray-600 dark:text-gray-400 decoration-gray-400' : 'text-gray-800 dark:text-white'}`}>
+            {ticket.title}
+            {commentCount > 0 && (
+              <span className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 text-[10px] font-bold text-indigo-100 bg-indigo-600 dark:bg-indigo-500 rounded-full shadow-sm" title={`${commentCount} comentarios`}>
+                 {commentCount}
+              </span>
+            )}
+          </h3>
         </div>
         <div className="flex flex-col gap-2 items-end">
           {isAdmin && !isResolved && (
@@ -183,7 +190,7 @@ export const TicketCard: React.FC<TicketCardProps> = ({
           )}
           {isAdmin && isResolved && (
              <div className="flex gap-2">
-                 <button onClick={(e) => { e.stopPropagation(); onReopen(ticket.id); }} className="shrink-0 bg-blue-100 hover:bg-blue-200 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/50 p-2 rounded-xl transition-all shadow-sm group flex items-center gap-2" title="Marcar ticket como No Leído / Pendiente de Revisión"><EyeOff size={20} className="transition-transform" /><span className="text-xs font-medium hidden sm:inline">No Leído</span></button>
+                 <button onClick={(e) => { e.stopPropagation(); onReopen(ticket.id); }} className="shrink-0 bg-blue-100 hover:bg-blue-200 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/50 p-2 rounded-xl transition-all shadow-sm group flex items-center gap-2" title="Marcar ticket como No Leído para revisión"><EyeOff size={20} className="transition-transform" /><span className="text-xs font-medium hidden sm:inline">No Leído</span></button>
                  <button onClick={(e) => { e.stopPropagation(); onReopen(ticket.id); }} className="shrink-0 bg-amber-500 hover:bg-amber-600 text-white p-2 rounded-xl transition-all shadow-sm group flex items-center gap-2 hover:shadow-md" title="Reabrir ticket por recurrencia"><RotateCcw size={20} className="group-hover:-rotate-180 transition-transform duration-500" /><span className="text-xs font-medium hidden sm:inline">Reabrir</span></button>
              </div>
           )}
